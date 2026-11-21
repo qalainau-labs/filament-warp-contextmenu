@@ -2,12 +2,7 @@
 
 All notable changes to `qalainau/filament-warp-contextmenu` are documented here.
 
-## [Unreleased]
-
-### Fixed
-
-- Show automatic search only for at least eight developer actions, including submenu children, excluding built-in copy, link and clipboard entries.
-- Omit the default Filament ellipsis icon from action groups unless an icon is explicitly configured.
+## [1.0.0] - 2026-11-21
 
 ### Added
 
