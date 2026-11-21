@@ -178,8 +178,8 @@ final class Menus
                 continue;
             }
             $result[(string) $key]['title'] = $record instanceof Model && ($table->hasCustomRecordTitle() || filled($table->getRecordTitleAttribute()))
-                ? (self::text($table->getRecordTitle($record)) ?: (string) $key)
-                : (string) $key;
+                ? (self::text($table->getRecordTitle($record)) ?: null)
+                : null;
             $result[(string) $key]['items'] = self::serialize($prepared['record'], $record);
             foreach ($prepared['cells'] as $column => $actions) {
                 $result[(string) $key]['cells'][$column] = self::serialize($actions, $record);

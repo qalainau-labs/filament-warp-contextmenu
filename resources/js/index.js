@@ -372,7 +372,7 @@ async function open(context, anchor, keyboard = false) {
     if (kind === 'record') {
         const rows = await fetchRows(context)
         const row = rows[context.key] ?? (await context.component.$call('__warpContextMenu', [context.key], 'record').catch(() => ({})))[context.key]
-        if (state.sheet) state.heading = row?.title || context.key
+        if (state.sheet) state.heading = row?.title || null
         const column = context.target.closest('[data-warp-context-menu-column]')?.dataset.warpContextMenuColumn
         items = [...(row?.cells?.[column] ?? []), ...(row?.items ?? [])]
         const cell = context.target.closest('td, .fi-ta-col')
