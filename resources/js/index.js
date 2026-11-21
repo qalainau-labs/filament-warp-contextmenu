@@ -2,7 +2,7 @@ import { surface, hideColumn, keyboardTarget } from './core/surfaces.js'
 import { search, shouldShowSearch } from './core/search.js'
 import { shouldCloseOnScroll } from './core/scroll.js'
 import { safeUrl } from './core/url.js'
-import { position, normalize, navigate, shortcut, longPress, safeTriangle, selectedLabel } from './core/menu.js'
+import { keepEdge, position, normalize, navigate, shortcut, longPress, safeTriangle, selectedLabel } from './core/menu.js'
 
 let installed = false
 let cache = new WeakMap()
@@ -154,6 +154,7 @@ function close(restore = false) {
     if (!active) return
     const previous = active
     active = null
+    previous.resetConfirmation?.()
     previous.menu.remove()
     previous.scrollSpace?.remove()
     previous.context.row?.removeAttribute('data-warp-context-menu-open')
@@ -161,15 +162,17 @@ function close(restore = false) {
     if (restore && previous.focus?.isConnected) previous.focus.focus({ preventScroll: true })
 }
 
-function place(menu, anchor, submenu = false) {
+function place(menu, anchor, submenu = false, previous = null) {
     if (mobile()) { menu.style.maxHeight = '80dvh'; return }
     const rect = menu.getBoundingClientRect()
-    const pos = position(anchor, rect, { width: innerWidth, height: innerHeight }, rtl(), submenu)
+    const viewport = { width: innerWidth, height: innerHeight }
+    const pos = previous && !submenu ? keepEdge(previous, rect, viewport) : position(anchor, rect, viewport, rtl(), submenu)
     if (innerWidth >= 640 || submenu) {
         menu.style.left = `${pos.x}px`
         menu.style.top = `${pos.y}px`
     }
     menu.style.maxHeight = `${pos.maxHeight}px`
+    return { x: pos.x, y: pos.y, height: menu.getBoundingClientRect().height, upward: pos.y < anchor.y }
 }
 
 async function copy(value, state) {
@@ -193,8 +196,22 @@ function announce(message) {
     requestAnimationFrame(() => { region.textContent = message })
 }
 
-function activate(item, state) {
+function activate(item, state, button) {
     if (item.disabled) return
+    const confirmed = state.confirmButton === button
+    state.resetConfirmation?.()
+    if (item.confirm && !confirmed) {
+        state.confirmButton = button
+        button.querySelector('.fi-warp-contextmenu-menu-label').textContent = item.confirm
+        button.setAttribute('aria-label', item.confirm)
+        state.resetConfirmation = () => {
+            button.querySelector('.fi-warp-contextmenu-menu-label').textContent = item.label
+            button.setAttribute('aria-label', item.label)
+            state.confirmButton = null
+            state.resetConfirmation = null
+        }
+        return
+    }
     if (item.stayOpen) { item.run(); return }
     if (item.copyValue != null) copy(item.copyValue, state)
     else if (item.run) item.run()
@@ -219,7 +236,7 @@ function renderItems(menu, items, state, parentButton = null) {
     let hoverOrigin = null
     let submenuTimer = null
     const host = menu.closest('.fi-warp-contextmenu-menu')
-    const closeSubmenu = () => { submenu?.remove(); host?.classList.remove('fi-warp-contextmenu-menu-has-submenu'); submenu = null; submenuButton?.setAttribute('aria-expanded', 'false'); submenuButton = null }
+    const closeSubmenu = () => { state.resetConfirmation?.(); submenu?.remove(); host?.classList.remove('fi-warp-contextmenu-menu-has-submenu'); submenu = null; submenuButton?.setAttribute('aria-expanded', 'false'); submenuButton = null }
     const openSubmenu = (item, button) => {
         clearTimeout(submenuTimer)
         if (submenuButton === button && submenu?.isConnected) return submenu
@@ -292,7 +309,7 @@ function renderItems(menu, items, state, parentButton = null) {
                 clearTimeout(submenuTimer)
                 if (!mobile() && event.pointerType !== 'touch') { hoverOrigin = point(event); openSubmenu(item, button) }
             })
-        } else button.addEventListener('click', () => activate(item, state))
+        } else button.addEventListener('click', () => activate(item, state, button))
         button.addEventListener('pointerenter', event => {
             if (mobile() || event.pointerType === 'touch') return
             if (item.type === 'submenu') { button.focus({ preventScroll: true }); return }
@@ -322,6 +339,7 @@ function renderItems(menu, items, state, parentButton = null) {
             const selected = buttons.find(({ button }) => button === document.activeElement)
             if (selected?.item.type === 'submenu') { event.preventDefault(); event.stopPropagation(); openSubmenu(selected.item, selected.button).querySelector('button:not(:disabled)')?.focus() }
         } else if ((event.key === back || (event.key === 'Escape' && !state.query)) && parentButton) {
+            state.resetConfirmation?.()
             event.preventDefault(); event.stopPropagation(); menu.parentElement?.classList.remove('fi-warp-contextmenu-menu-has-submenu'); menu.remove(); parentButton.setAttribute('aria-expanded', 'false'); parentButton.focus()
 
         }
@@ -330,6 +348,7 @@ function renderItems(menu, items, state, parentButton = null) {
 
 function draw(state, query = '') {
     const { menu, items, context } = state
+    state.resetConfirmation?.()
     state.query = query
     menu.classList.remove('fi-warp-contextmenu-menu-has-submenu')
     menu.replaceChildren()
@@ -358,7 +377,8 @@ function draw(state, query = '') {
     }
     if (!visible.length) menu.append(el('div', 'fi-warp-contextmenu-menu-heading', query ? context.config.messages.search_empty.replace(':query', query) : context.config.messages[`empty_${state.kind}`] ?? context.config.messages.empty))
     renderItems(menu, visible, state)
-    place(menu, state.anchor)
+    const placement = place(menu, state.anchor, false, state.placement)
+    state.placement ??= placement
 }
 
 function redrawClipboard(state) {
@@ -391,7 +411,7 @@ function clipboardItems(state) {
     return normalize([
         section(true), section(false),
         ...(!data.length ? [action(labels.empty, () => {})] : []),
-        ...(data.length ? [action(labels[data.some(entry => entry.kept) ? 'clear' : 'clear_all'], () => { clipboard.clear(); redrawClipboard(state) }, true)] : []),
+        ...(data.length ? [{ ...action(labels[data.some(entry => entry.kept) ? 'clear' : 'clear_all'], () => { clipboard.clear(); redrawClipboard(state) }, true), confirm: labels.confirm_clear }] : []),
         action('＋ ' + labels.add, () => clipboardEditor(state), true),
     ])
 }
@@ -475,7 +495,6 @@ async function open(context, anchor, keyboard = false) {
     state.items = items
     state.anchor = anchor
     draw(state)
-    place(menu, anchor)
     if (state.sheet && context.row) {
         const row = context.row.getBoundingClientRect()
         const sheetTop = innerHeight - menu.offsetHeight

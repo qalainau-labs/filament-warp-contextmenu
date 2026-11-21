@@ -1,3 +1,17 @@
+// Keep the edge chosen by the first full draw, even after repeated filtering.
+export function keepEdge(previous, size, viewport) {
+    if (viewport.width < 640) return null
+    const margin = 8
+    const maxHeight = Math.max(0, viewport.height - margin * 2)
+    const height = Math.min(size.height, maxHeight)
+    const y = previous.upward ? previous.y + previous.height - height : previous.y
+    return {
+        x: Math.max(margin, Math.min(previous.x, viewport.width - size.width - margin)),
+        y: Math.max(margin, Math.min(y, viewport.height - height - margin)),
+        maxHeight,
+    }
+}
+
 export function position(point, size, viewport, rtl = false, submenu = false) {
     const margin = 8
     let x = rtl ? point.x - size.width : point.x

@@ -1,6 +1,7 @@
+import keepEdgeCases from './keep-edge-cases.json'
 import positionCases from './position-cases.json'
 import { describe, it, expect } from 'vitest'
-import { position, normalize, navigate, typeahead, shortcut, longPress, safeTriangle, selectedLabel } from '../../resources/js/core/menu.js'
+import { keepEdge, position, normalize, navigate, typeahead, shortcut, longPress, safeTriangle, selectedLabel } from '../../resources/js/core/menu.js'
 
 describe('position', () => {
     it.each(positionCases)('$name', ({ point, size, viewport, rtl, expected }) => {
@@ -80,4 +81,10 @@ it('formats Filament selection counts like the table indicator', () => {
     expect(selectedLabel('1 Datensatz ausgewählt|:count Datensätze ausgewählt', 1234, 'de')).toBe('1.234 Datensätze ausgewählt')
     expect(selectedLabel('1件選択済み|:count件選択済み', 1234, 'ja')).toBe('1,234件選択済み')
     expect(selectedLabel('已选 :count 条记录', 2, 'zh_CN')).toBe('已选 2 条记录')
+})
+
+describe('keepEdge redraw', () => {
+    it.each(keepEdgeCases)('$name', ({ previous, size, viewport, expected }) => {
+        expect(keepEdge(previous, size, viewport)).toEqual(expected)
+    })
 })

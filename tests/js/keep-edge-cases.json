@@ -1,0 +1,108 @@
+[
+    {
+        "name": "upward menu shrinks toward its bottom edge",
+        "previous": {
+            "x": 80,
+            "y": 200,
+            "height": 400,
+            "upward": true
+        },
+        "size": {
+            "width": 200,
+            "height": 100
+        },
+        "viewport": {
+            "width": 1000,
+            "height": 800
+        },
+        "expected": {
+            "x": 80,
+            "y": 500,
+            "maxHeight": 784
+        }
+    },
+    {
+        "name": "downward menu keeps its top edge",
+        "previous": {
+            "x": 80,
+            "y": 90,
+            "height": 400,
+            "upward": false
+        },
+        "size": {
+            "width": 200,
+            "height": 100
+        },
+        "viewport": {
+            "width": 1000,
+            "height": 800
+        },
+        "expected": {
+            "x": 80,
+            "y": 90,
+            "maxHeight": 784
+        }
+    },
+    {
+        "name": "growing upward menu clamps to margin",
+        "previous": {
+            "x": 80,
+            "y": 200,
+            "height": 400,
+            "upward": true
+        },
+        "size": {
+            "width": 200,
+            "height": 900
+        },
+        "viewport": {
+            "width": 1000,
+            "height": 800
+        },
+        "expected": {
+            "x": 80,
+            "y": 8,
+            "maxHeight": 784
+        }
+    },
+    {
+        "name": "growing downward menu clamps to viewport",
+        "previous": {
+            "x": 900,
+            "y": 600,
+            "height": 100,
+            "upward": false
+        },
+        "size": {
+            "width": 300,
+            "height": 500
+        },
+        "viewport": {
+            "width": 1000,
+            "height": 800
+        },
+        "expected": {
+            "x": 692,
+            "y": 292,
+            "maxHeight": 784
+        }
+    },
+    {
+        "name": "mobile sheet retains its own placement",
+        "previous": {
+            "x": 8,
+            "y": 200,
+            "height": 400,
+            "upward": true
+        },
+        "size": {
+            "width": 390,
+            "height": 100
+        },
+        "viewport": {
+            "width": 390,
+            "height": 844
+        },
+        "expected": null
+    }
+]

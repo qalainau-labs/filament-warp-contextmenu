@@ -504,3 +504,77 @@ it.each(['ContextMenu', 'F10'])('uses the hovered cell with body focus and %s wh
     expect(document.querySelector('[role=menu]')?.getAttribute('aria-label')).toBe('Record actions')
     expect(document.querySelector('[role=menu]')?.textContent).toContain('Edit')
 })
+
+
+it.each([false, true])('clipboard clear confirmation requires a second click (kept=%s)', async kept => {
+    const clipboard = installClipboard([{ value: 'Example', kept, time: 1 }])
+    clipboard.messages = { ...clipboardMessages, confirm_clear: 'Click again to remove' }
+    rightClick(); await flush()
+    menuButton('Clipboard').click()
+    const label = kept ? clipboardMessages.clear : clipboardMessages.clear_all
+    menuButton(label).click()
+    expect(clipboard.clear).not.toHaveBeenCalled()
+    expect(menuButton('Click again to remove')?.textContent).toContain('Click again to remove')
+    expect(document.querySelector('.fi-warp-contextmenu-menu-submenu')).not.toBeNull()
+    menuButton('Click again to remove').click()
+    expect(clipboard.clear).toHaveBeenCalledTimes(1)
+})
+
+it.each(['other item', 'search', 'close', 'submenu back'])('clipboard clear confirmation resets on %s', async operation => {
+    const clipboard = installClipboard([{ value: 'Example', time: 1 }])
+    clipboard.messages = { ...clipboardMessages, confirm_clear: 'Click again to remove' }
+    rightClick(); await flush()
+    menuButton('Clipboard').click()
+    menuButton(clipboardMessages.clear_all).click()
+    expect(clipboard.clear).not.toHaveBeenCalled()
+    if (operation === 'other item') {
+        menuButton('Example').click()
+    } else if (operation === 'search') {
+        document.activeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'e', bubbles: true }))
+    } else if (operation === 'submenu back') {
+        menuButton('Click again to remove').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }))
+    } else {
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+        rightClick(); await flush()
+    }
+    expect(menuButton('Click again to remove')).toBeUndefined()
+    if (operation === 'search') document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    menuButton('Clipboard').click()
+    menuButton(clipboardMessages.clear_all).click()
+    expect(clipboard.clear).not.toHaveBeenCalled()
+})
+
+it('clipboard clear without confirmation message still clears immediately', async () => {
+    const clipboard = installClipboard([{ value: 'Example', time: 1 }])
+    rightClick(); await flush()
+    menuButton('Clipboard').click()
+    menuButton(clipboardMessages.clear_all).click()
+    expect(clipboard.clear).toHaveBeenCalledTimes(1)
+})
+
+
+it.each([90, 700])('retains the initial menu edge through search and Clipboard redraw at y=%i', async y => {
+    vi.stubGlobal('innerWidth', 1000)
+    vi.stubGlobal('innerHeight', 800)
+    try {
+        installClipboard([{ value: 'Example', time: 1 }])
+        component.$call.mockResolvedValue({ abc: { items: Array.from({ length: 10 }, (_, i) => ({ type: 'item', label: `Action ${i}`, name: `action${i}` })), cells: {} } })
+        vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function () {
+            const height = this.querySelector('input')?.value ? 100 : 400
+            return { x: 80, y: Number.parseFloat(this.style.top) || 0, width: 200, height }
+        })
+        target.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 80, clientY: y }))
+        await flush()
+        const menu = document.querySelector('body > [role=menu]')
+        expect(menu.style.top).toBe(`${y === 700 ? 300 : 90}px`)
+        for (const query of ['Action 1', 'Action', '']) {
+            const input = menu.querySelector('input')
+            input.value = query
+            input.dispatchEvent(new Event('input', { bubbles: true }))
+            expect(menu.style.top).toBe(`${y === 700 ? query ? 600 : 300 : 90}px`)
+        }
+        menuButton('Clipboard').click()
+        menuButton(clipboardMessages.clear_all).click()
+        expect(menu.style.top).toBe(`${y === 700 ? 300 : 90}px`)
+    } finally { vi.unstubAllGlobals() }
+})
