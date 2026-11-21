@@ -1,0 +1,88 @@
+// @vitest-environment happy-dom
+import { beforeEach, afterEach, it, expect, vi } from 'vitest'
+
+let marker, table, target, component, hook, factory, documentListeners, windowListeners
+const nativeClosest = Element.prototype.closest
+const nativeQueryAll = Element.prototype.querySelectorAll
+const messages = { loading: 'Loading', label_record: 'Record actions', copy_cell: 'Copy', open_link_new_tab: 'Open', copy_link: 'Link' }
+const flush = async () => { for (let i = 0; i < 12; i++) await Promise.resolve() }
+const rightClick = () => {
+    const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 80, clientY: 90 })
+    target.dispatchEvent(event)
+    return event
+}
+
+beforeEach(async () => {
+    vi.resetModules()
+    // happy-dom 15 does not parse escaped colons in attribute selectors. Adapt
+    // its selector parser; the real selectors are exercised by Playwright.
+    vi.spyOn(Element.prototype, 'closest').mockImplementation(function (selector) {
+        return nativeClosest.call(this, selector.replaceAll('\\:', ':'))
+    })
+    vi.spyOn(Element.prototype, 'querySelectorAll').mockImplementation(function (selector) {
+        return nativeQueryAll.call(this, selector.replaceAll('\\:', ':'))
+    })
+    documentListeners = vi.spyOn(document, 'addEventListener')
+    windowListeners = vi.spyOn(window, 'addEventListener')
+    document.body.innerHTML = `<div wire:id="host"><div class="fi-ta"><div data-warp-context-menu-config></div><table><tbody><tr wire:key="host.table.records.abc"><td><div wire:key="host.table.record.abc.column.name">Alice</div></td></tr></tbody></table></div></div>`
+    document.head.innerHTML = ''
+    marker = document.querySelector('[data-warp-context-menu-config]')
+    marker.dataset.warpContextMenuConfig = JSON.stringify({ kind: 'record', copyCell: false, links: false, bulk: false, messages, css: 'data:text/css,' })
+    table = document.querySelector('.fi-ta')
+    target = document.querySelector('td div')
+    component = { $call: vi.fn(async method => method === '__warpContextMenu' ? { abc: { items: [{ type: 'item', name: 'edit', label: 'Edit', context: {} }], cells: {} } } : null) }
+    hook = vi.fn()
+    window.Livewire = { find: () => component, hook: (_, callback) => { hook = callback } }
+    window.Alpine = { $data: () => ({ getSelectedRecordsCount: () => 0 }) }
+    factory = (await import('../../resources/js/index.js')).default
+    factory().init.call({ $el: marker })
+})
+
+afterEach(() => {
+    for (const args of documentListeners.mock.calls) document.removeEventListener(...args)
+    for (const args of windowListeners.mock.calls) window.removeEventListener(...args)
+    vi.restoreAllMocks()
+})
+
+it('finds the record ancestor beyond a nested Filament column key and uses native mounting', async () => {
+    expect(rightClick().defaultPrevented).toBe(true)
+    await flush()
+    const button = document.querySelector('[role=menuitem]')
+    expect(button?.textContent).toContain('Edit')
+    button.click()
+    expect(component.$call).toHaveBeenLastCalledWith('mountAction', 'edit', {}, { table: true, recordKey: 'abc' })
+    expect(document.querySelector('[role=menu]')).toBeNull()
+})
+
+it('installs one document contextmenu listener even when multiple markers initialize', async () => {
+    factory().init.call({ $el: marker })
+    rightClick()
+    await flush()
+    expect(component.$call).toHaveBeenCalledTimes(1)
+    expect(document.querySelectorAll('[role=menu]')).toHaveLength(1)
+})
+
+it('keeps the native menu for prefetched empty rows', async () => {
+    component.$call.mockResolvedValue({ abc: { items: [], cells: {} } })
+    target.dispatchEvent(new MouseEvent('pointerover', { bubbles: true }))
+    await flush()
+    expect(rightClick().defaultPrevented).toBe(false)
+    expect(document.querySelector('[role=menu]')).toBeNull()
+})
+
+it('discards prefetched rows after a Livewire morph', async () => {
+    target.dispatchEvent(new MouseEvent('pointerover', { bubbles: true }))
+    await flush()
+    hook({ component: { el: table.closest('[wire\\:id]') } })
+    rightClick()
+    await flush()
+    expect(component.$call).toHaveBeenCalledTimes(2)
+})
+
+it('never renders an action label as HTML', async () => {
+    component.$call.mockResolvedValue({ abc: { items: [{ type: 'item', name: 'unsafe', label: '<img src=x onerror=alert(1)>' }], cells: {} } })
+    rightClick()
+    await flush()
+    expect(document.querySelector('[role=menu] img')).toBeNull()
+    expect(document.querySelector('[role=menuitem]').textContent).toContain('<img')
+})

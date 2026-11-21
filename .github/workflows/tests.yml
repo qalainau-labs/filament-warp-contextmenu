@@ -1,0 +1,181 @@
+name: tests
+
+# GitHub Actions の時間は private リポジトリでは月の枠（2,000 分）があり、ジョブごとに 1 分単位で切り上げて数えられる。
+# 2026-11 は full を手動で回していたら 7 日で枠を使い切ったので（2026-11-07）、push・PR のたびは 1 つのジョブだけにする:
+# 一番古い PHP 8.3 / Testbench 10 で SQLite のテスト・pint・ビルドの確認（DB のサービスを起動しないので 1〜2 分）。
+# PHP 8.3・8.4・8.5 × Testbench 10・11 × SQLite・MySQL・MariaDB・PostgreSQL のすべては、リリースの前（タグを付ける前）に
+# モノレポのルートで手元の Mac で回す（Herd の PHP と DB を使う）:
+#   bin/test-full contextmenu
+# 下の full のジョブは、手元で回せないときの予備（1 回 30 分ほど使う）:
+#   gh workflow run tests.yml -R qalainau-labs/filament-warp-contextmenu -f full=true
+on:
+  push:
+    branches: [main]
+    paths-ignore: ['**.md', 'art/**', 'tests/browser/**']
+  pull_request:
+    branches: [main]
+    paths-ignore: ['**.md', 'art/**', 'tests/browser/**']
+  workflow_dispatch:
+    inputs:
+      full:
+        description: 'PHP 8.3・8.4・8.5 × Testbench 10・11 × 4 つの DB のすべてで回す（普段はモノレポの bin/test-full を使う）'
+        type: boolean
+        default: true
+
+# テストとビルドの確認だけなので、リポジトリは読むだけにする
+permissions:
+  contents: read
+
+# 同じブランチに続けて push したら、古いほうの run は止める（full の run は普段の push では止めない）
+concurrency:
+  group: tests-${{ github.ref }}-${{ inputs.full == true }}
+  cancel-in-progress: true
+
+jobs:
+  quick:
+    if: ${{ inputs.full != true }}
+    runs-on: ubuntu-latest
+    name: PHP 8.3 / Testbench 10 / SQLite and built assets
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: pdo_sqlite, intl
+          coverage: none
+
+      - name: Cache Composer downloads
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/composer/files
+          key: composer-8.3-10.*-${{ hashFiles('composer.json') }}
+          restore-keys: composer-8.3-10.*-
+
+      - name: Install dependencies
+        id: install
+        run: |
+          composer require "orchestra/testbench:10.*" --dev --no-update --no-interaction
+          composer update --prefer-dist --no-interaction --no-progress
+
+      - name: Check code style
+        run: vendor/bin/pint --test
+
+      - name: Tests on SQLite
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: vendor/bin/pest
+        env:
+          WARP_CONTEXTMENU_TEST_DB: sqlite
+
+      - name: Setup Node
+        if: ${{ !cancelled() }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Build
+        id: build
+        if: ${{ !cancelled() }}
+        run: |
+          npm ci
+          npm run build
+
+      - name: Run JavaScript tests
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: npm test
+
+      # 利用者は resources/dist をそのまま読み込むので、ソースと食い違っていたら失敗させる
+      - name: Check that resources/dist matches the sources
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: git diff --exit-code -- resources/dist
+
+  full:
+    if: ${{ inputs.full == true }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4', '8.5']
+        testbench: ['10.*', '11.*']
+
+    name: PHP ${{ matrix.php }} / Testbench ${{ matrix.testbench }}
+
+    # JSON の列や行ロックは DB ごとに違いうるので、対応する 3 つの DB すべてで確かめる。版は README に書いた最低の版（新しい版は bin/test-full が Herd で回す）
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ALLOW_EMPTY_PASSWORD: 'yes'
+          MYSQL_DATABASE: testing
+        ports: ['3306:3306']
+        options: --health-cmd="mysqladmin ping" --health-interval=5s --health-timeout=5s --health-retries=10
+      mariadb:
+        image: mariadb:10.11
+        env:
+          MARIADB_ALLOW_EMPTY_ROOT_PASSWORD: 'yes'
+          MARIADB_DATABASE: testing
+        ports: ['3307:3306']
+        options: --health-cmd="healthcheck.sh --connect --innodb_initialized" --health-interval=5s --health-timeout=5s --health-retries=10
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: testing
+        ports: ['5432:5432']
+        options: --health-cmd=pg_isready --health-interval=5s --health-timeout=5s --health-retries=10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: pdo_sqlite, pdo_mysql, pdo_pgsql, intl
+          coverage: none
+
+      - name: Cache Composer downloads
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/composer/files
+          key: composer-${{ matrix.php }}-${{ matrix.testbench }}-${{ hashFiles('composer.json') }}
+          restore-keys: composer-${{ matrix.php }}-${{ matrix.testbench }}-
+
+      - name: Install dependencies
+        id: install
+        run: |
+          composer require "orchestra/testbench:${{ matrix.testbench }}" --dev --no-update --no-interaction
+          composer update --prefer-dist --no-interaction --no-progress
+
+      - name: Check code style
+        run: vendor/bin/pint --test
+
+      # DB ごとに別のステップにして、1 つが失敗しても残りの DB の結果も見えるようにする
+      - name: Tests on SQLite
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: vendor/bin/pest
+        env:
+          WARP_CONTEXTMENU_TEST_DB: sqlite
+
+      - name: Tests on MySQL
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: vendor/bin/pest
+        env:
+          WARP_CONTEXTMENU_TEST_DB: mysql
+
+      - name: Tests on MariaDB
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: vendor/bin/pest
+        env:
+          WARP_CONTEXTMENU_TEST_DB: mariadb
+
+      - name: Tests on PostgreSQL
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: vendor/bin/pest
+        env:
+          WARP_CONTEXTMENU_TEST_DB: pgsql

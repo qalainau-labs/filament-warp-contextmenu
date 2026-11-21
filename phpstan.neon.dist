@@ -1,0 +1,30 @@
+# 自動生成: Warp monorepo の shared/phpstan.neon.dist から bin/sync-shared でコピーしたもの。直すときは shared/ のほうを直す。
+# 静的解析（Larastan）。リリースの前に bin/test-full が checks の中で回す（composer analyse でも回せる）。
+# 無いメソッド・引数の数や型の違いのような、テストが通らないところにある間違いを見つけるため（2026-11-11）。
+# 入れた時点の指摘は phpstan-baseline.neon に入れてあり、新しく書いたコードの指摘だけで落ちる。
+# baseline を作り直すとき：vendor/bin/phpstan analyse --generate-baseline
+includes:
+    - vendor/larastan/larastan/extension.neon
+    - phpstan-baseline.neon
+
+parameters:
+    level: 5
+    paths:
+        - src
+    # baseline は最新の Filament・Laravel で作る。依存のバージョンが違うと出ない指摘があるので、合わなくなった行では落とさない
+    reportUnmatchedIgnoredErrors: false
+    # プラグインごとの結果のキャッシュ（既定は全プロジェクトで 1 つの場所で、プラグインを並べて回すとほかのプラグインの結果を読んで落ちた）
+    tmpDir: vendor/.phpstan
+    # ほかの Warp のプラグインが入っているときだけ使う連携。そのプラグインは require していないので、クラスが見つからない
+    excludePaths:
+        - src/Integrations (?)
+    # 共通のページの権限の口（shared/php/Access）は全プラグインに配る。プラグインのクラスが無いプラグインでは AuthorizesPages を使わない
+    ignoreErrors:
+        -
+            identifier: trait.unused
+            path: src/Access/*
+    # Filament の halt()・cancel() は必ず例外を投げるが、戻り値の型が void なので教える
+    earlyTerminatingMethodCalls:
+        Filament\Actions\Action:
+            - halt
+            - cancel

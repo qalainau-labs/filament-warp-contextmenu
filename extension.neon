@@ -1,0 +1,9 @@
+# 自動生成: Warp monorepo の shared/phpstan/extension.neon から bin/sync-shared でコピーしたもの。直すときは shared/ のほうを直す。
+# PHPStan（Larastan）の拡張。Filament の部品に macro() で足したメソッド（このプラグインのマクロ）を教える。
+# phpstan/extension-installer を使っていれば composer.json の extra.phpstan.includes で自動で読まれる。
+# 使っていなければ、アプリの phpstan.neon の includes に vendor/qalainau/<このプラグイン>/extension.neon を足す。
+services:
+    -
+        class: Qalainau\FilamentWarpContextMenu\PHPStan\FilamentMacroMethods
+        tags:
+            - phpstan.broker.methodsClassReflectionExtension

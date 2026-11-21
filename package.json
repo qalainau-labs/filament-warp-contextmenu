@@ -1,0 +1,15 @@
+{
+    "name": "filament-warp-contextmenu",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "build": "node bin/build.mjs",
+        "watch": "node bin/build.mjs --watch",
+        "test": "vitest run tests/js"
+    },
+    "devDependencies": {
+        "esbuild": "^0.25",
+        "happy-dom": "^15.11.7",
+        "vitest": "^3.2"
+    }
+}
