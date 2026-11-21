@@ -1,6 +1,6 @@
 {
     "name": "qalainau/filament-warp-contextmenu",
-    "description": "Right-click context menus for Filament v5 tables, cells, selected records and pages, using native Filament actions.",
+    "description": "Native Filament context menus for rows, cells, selections and pages, with action search, clipboard history, keyboard and touch support.",
     "keywords": [
         "filament",
         "filamentphp",
@@ -9,7 +9,12 @@
         "right-click",
         "table",
         "actions",
-        "bulk-actions"
+        "bulk-actions",
+        "clipboard",
+        "search",
+        "keyboard",
+        "touch",
+        "rtl"
     ],
     "type": "library",
     "license": "MIT",
@@ -23,7 +28,8 @@
     ],
     "support": {
         "issues": "https://warpui.com/support?plugin=contextmenu",
-        "docs": "https://github.com/qalainau-labs/filament-warp-contextmenu-docs"
+        "docs": "https://github.com/qalainau-labs/filament-warp-contextmenu-docs",
+        "source": "https://github.com/qalainau-labs/filament-warp-contextmenu"
     },
     "require": {
         "php": "^8.3",

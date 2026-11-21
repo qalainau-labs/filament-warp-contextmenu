@@ -99,3 +99,14 @@ export function caretPoint(target) {
     mirror.remove()
     return result
 }
+
+export function relativeTime(time, locale = document.documentElement.lang, now = Date.now()) {
+    if (!Number.isFinite(time)) return ''
+    const seconds = (time - now) / 1000
+    const units = [['year', 31536000], ['month', 2592000], ['day', 86400], ['hour', 3600], ['minute', 60], ['second', 1]]
+    const [unit, size] = units.find(([, size]) => Math.abs(seconds) >= size) ?? units.at(-1)
+    let formatter
+    try { formatter = new Intl.RelativeTimeFormat(locale?.replaceAll('_', '-') || undefined, { numeric: 'auto' }) }
+    catch { formatter = new Intl.RelativeTimeFormat('en', { numeric: 'auto' }) }
+    return formatter.format(Math.round(seconds / size), unit)
+}

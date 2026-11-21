@@ -50,7 +50,7 @@ it('only uses methods that exist', function (): void {
 
     // Pest・Livewire・Filament・Eloquent・Laravel と、例の中のアプリのメソッド
     $notOurs = ['and', 'make', 'columns', 'schema', 'url', 'pluck', 'query', 'where', 'auth', 'user', 'can', 'route', 'merge', 'orders', 'open',
-        'getLabel', 'getColor', 'getPanel', 'setCurrentPanel', 'setTenant', 'actingAs', 'livewire', 'call', 'assertReturned', 'assertSet', 'recordActions',
+        'getLabel', 'getColor', 'getPanel', 'setCurrentPanel', 'setTenant', 'actingAs', 'livewire', 'call', 'assertReturned', 'assertSet', 'recordActions', 'dropdown',
         'plugin', 'toStartWith', 'toContain', 'toBe', 'toBeNull', 'forgetInstance', 'recordUrl',
         // Filament の欄・リソース・リレーション、文章の中の http(s)
         'relationship', 'options', 'canView', 'count', 'http'];

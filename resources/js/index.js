@@ -10,6 +10,7 @@ let active = null
 let lastRow = null
 let touch = null
 let suppressClick = 0
+const mobile = () => innerWidth < 640
 const rtl = () => document.documentElement.dir === 'rtl'
 const point = event => ({ x: event.clientX, y: event.clientY })
 const el = (tag, className, text) => {
@@ -73,6 +74,7 @@ function close(restore = false) {
 }
 
 function place(menu, anchor, submenu = false) {
+    if (mobile()) { menu.style.maxHeight = `${innerHeight - 16}px`; return }
     const rect = menu.getBoundingClientRect()
     const pos = position(anchor, rect, { width: innerWidth, height: innerHeight }, rtl(), submenu)
     if (innerWidth >= 640 || submenu) {
@@ -129,7 +131,8 @@ function renderItems(menu, items, state, parentButton = null) {
     let submenuButton = null
     let hoverOrigin = null
     let submenuTimer = null
-    const closeSubmenu = () => { submenu?.remove(); submenu = null; submenuButton?.setAttribute('aria-expanded', 'false'); submenuButton = null }
+    const host = menu.closest('.fi-wcm')
+    const closeSubmenu = () => { submenu?.remove(); host?.classList.remove('fi-wcm-has-submenu'); submenu = null; submenuButton?.setAttribute('aria-expanded', 'false'); submenuButton = null }
     const openSubmenu = (item, button) => {
         clearTimeout(submenuTimer)
         if (submenuButton === button && submenu?.isConnected) return submenu
@@ -137,8 +140,15 @@ function renderItems(menu, items, state, parentButton = null) {
         submenu = el('div', 'fi-wcm fi-wcm-submenu')
         submenu.setAttribute('role', 'menu')
         submenu.setAttribute('aria-label', item.label)
-        menu.append(submenu)
+        ;(mobile() ? host : menu).append(submenu)
         submenuButton = button
+        if (mobile()) {
+            host.classList.add('fi-wcm-has-submenu')
+            const back = el('button', 'fi-wcm-item fi-wcm-back', '‹ ' + state.context.config.messages.back)
+            back.type = 'button'; back.setAttribute('role', 'menuitem')
+            back.addEventListener('click', () => { closeSubmenu(); button.focus({ preventScroll: true }) })
+            submenu.append(back)
+        }
         submenu.addEventListener('pointerenter', () => clearTimeout(submenuTimer))
         const rect = button.getBoundingClientRect()
         renderItems(submenu, item.items, state, button)
@@ -154,8 +164,9 @@ function renderItems(menu, items, state, parentButton = null) {
             const group = el('div', 'fi-wcm-section')
             group.setAttribute('role', 'group'); group.setAttribute('aria-label', item.label ?? '')
             if (item.label) group.append(el('div', 'fi-wcm-heading', item.label))
+            menu.append(group)
             renderItems(group, item.items, state, parentButton)
-            menu.append(group); continue
+            continue
         }
         const button = el('button', 'fi-wcm-item fi-dropdown-list-item')
         button.type = 'button'; button.tabIndex = -1
@@ -179,6 +190,7 @@ function renderItems(menu, items, state, parentButton = null) {
         const label = el('span', 'fi-wcm-label', item.label)
         if (item.strong) { label.textContent = ''; label.append(el('strong', '', item.label)) }
         if (item.preview) label.append(el('span', 'fi-wcm-preview', item.preview.replace(/\s+/g, ' ')))
+        if (item.detail) label.append(el('small', 'fi-wcm-detail', item.detail))
         if (item.disabled && item.tooltip) label.append(el('small', 'fi-wcm-detail', item.tooltip))
         if (item.path) label.append(el('small', 'fi-wcm-detail', item.path + ' › ' + item.label))
         button.append(icon, label)
@@ -190,11 +202,11 @@ function renderItems(menu, items, state, parentButton = null) {
             button.addEventListener('click', () => openSubmenu(item, button).querySelector('button:not(:disabled)')?.focus())
             button.addEventListener('pointerenter', event => {
                 clearTimeout(submenuTimer)
-                if (event.pointerType !== 'touch') { hoverOrigin = point(event); openSubmenu(item, button) }
+                if (!mobile() && event.pointerType !== 'touch') { hoverOrigin = point(event); openSubmenu(item, button) }
             })
         } else button.addEventListener('click', () => activate(item, state))
         button.addEventListener('pointerenter', event => {
-            if (event.pointerType === 'touch') return
+            if (mobile() || event.pointerType === 'touch') return
             if (item.type === 'submenu') { button.focus({ preventScroll: true }); return }
             if (submenu && hoverOrigin) {
                 const r = submenu.getBoundingClientRect(), edge = rtl() ? r.right : r.left
@@ -222,7 +234,7 @@ function renderItems(menu, items, state, parentButton = null) {
             const selected = buttons.find(({ button }) => button === document.activeElement)
             if (selected?.item.type === 'submenu') { event.preventDefault(); event.stopPropagation(); openSubmenu(selected.item, selected.button).querySelector('button:not(:disabled)')?.focus() }
         } else if ((event.key === back || (event.key === 'Escape' && !state.query)) && parentButton) {
-            event.preventDefault(); event.stopPropagation(); menu.remove(); parentButton.setAttribute('aria-expanded', 'false'); parentButton.focus()
+            event.preventDefault(); event.stopPropagation(); menu.parentElement?.classList.remove('fi-wcm-has-submenu'); menu.remove(); parentButton.setAttribute('aria-expanded', 'false'); parentButton.focus()
 
         }
     }
@@ -231,6 +243,8 @@ function renderItems(menu, items, state, parentButton = null) {
 function draw(state, query = '') {
     const { menu, items, context } = state
     state.query = query
+    state.editing = false
+    menu.classList.remove('fi-wcm-has-submenu')
     menu.replaceChildren()
     const visible = query ? search(items, query) : items
     if (query || flatten(items).length >= 8 || state.pasteTarget) {
@@ -262,6 +276,8 @@ function draw(state, query = '') {
 }
 
 function editor(state, entry = null) {
+    state.editing = true
+    state.menu.classList.remove('fi-wcm-has-submenu')
     state.menu.replaceChildren()
     state.menu.onkeydown = null
     const form = el('form', 'fi-wcm-editor')
@@ -269,8 +285,15 @@ function editor(state, entry = null) {
     const name = el('input', ''); name.value = entry?.name ?? ''; nameLabel.append(name)
     const valueLabel = el('label', '', state.context.config.messages.clipboard_add_value)
     const value = el('textarea', ''); value.value = entry?.value ?? ''; value.required = true; valueLabel.append(value)
-    const submit = el('button', 'fi-wcm-item', state.context.config.messages.clipboard_add_submit); submit.type = 'submit'
-    form.append(nameLabel, valueLabel, submit)
+    const submit = el('button', 'fi-btn fi-size-sm fi-color-primary', state.context.config.messages.clipboard_add_submit); submit.type = 'submit'
+    const validate = () => { submit.disabled = !value.value.trim() }; validate(); value.addEventListener('input', validate)
+    const cancel = el('button', 'fi-btn fi-size-sm fi-color-gray', state.context.config.messages.clipboard_add_cancel); cancel.type = 'button'
+    for (const [key, button] of [['save', submit], ['cancel', cancel]]) {
+        for (const [attribute, value] of Object.entries(state.context.config.clipboardButtons?.[key] ?? {})) button.setAttribute(attribute, value)
+    }
+    cancel.addEventListener('click', () => { draw(state); state.menu.querySelector('input,button')?.focus() })
+    const actions = el('div', 'fi-wcm-editor-actions'); actions.append(submit, cancel)
+    form.append(nameLabel, valueLabel, actions)
     form.addEventListener('submit', event => { event.preventDefault(); if (!value.value.trim()) return; clipboard.save(value.value, name.value, entry?.value ?? null); refreshClipboard(state) })
     state.menu.append(form); place(state.menu, state.anchor); value.focus()
 }
@@ -287,11 +310,11 @@ function clipboardItems(state) {
     const data = clipboard.entries()
     const section = kept => ({ type: 'section', label: messages[kept ? 'clipboard_saved_section' : 'clipboard_recent_section'], items: data.filter(entry => !!entry.kept === kept).map(entry => {
         const label = entry.name || entry.value.replace(/\s+/g, ' ')
-        const tooltip = [entry.source, entry.time ? new Date(entry.time).toLocaleString() : ''].filter(Boolean).join(' · ')
+        const detail = [entry.source || document.title, clipboard.relativeTime(entry.time, state.context.config.locale ?? document.documentElement.lang)].filter(Boolean).join(' · ')
         const copyEntry = () => { if (state.pasteTarget) { clipboard.paste(state.pasteTarget, entry.value, state.selection); clipboard.capture(entry.value, entry.source) } else copy(entry.value, state) }
-        if (state.pasteTarget) return { ...action(label, copyEntry), tooltip, strong: !!entry.name, preview: entry.name ? entry.value : null, keywords: [entry.value, entry.name ?? ''] }
+        if (state.pasteTarget) return { ...action(label, copyEntry), detail, strong: !!entry.name, preview: entry.name ? entry.value : null, keywords: [entry.value, entry.name ?? ''] }
         const update = run => () => { run(); refreshClipboard(state) }
-        return { type: 'submenu', label, tooltip, strong: !!entry.name, preview: entry.name ? entry.value : null, items: [
+        return { type: 'submenu', label, detail, strong: !!entry.name, preview: entry.name ? entry.value : null, items: [
             action(messages.copy_cell, copyEntry),
             action(messages[entry.kept ? 'clipboard_unsave' : 'clipboard_save'], update(() => clipboard.keep(entry.value, !entry.kept)), true),
             ...(entry.kept ? [action(messages.clipboard_edit, () => editor(state, entry), true)] : []),
@@ -330,15 +353,16 @@ async function open(context, anchor, keyboard = false) {
     context.row?.setAttribute('data-warp-context-menu-open', '')
     menu.append(el('div', 'fi-wcm-heading', context.config.messages.loading)); document.body.append(menu); place(menu, anchor)
     let items
+    const copies = [], links = []
     if (kind === 'record') {
         const rows = await fetchRows(context)
         const row = rows[context.key] ?? (await context.component.$call('__warpContextMenu', [context.key], 'record').catch(() => ({})))[context.key]
         const column = context.target.closest('[data-warp-context-menu-column]')?.dataset.warpContextMenuColumn
         items = [...(row?.cells?.[column] ?? []), ...(row?.items ?? [])]
         const cell = context.target.closest('td, .fi-ta-col')
-        if (cell && context.config.copyCell) items.push({ type: 'separator' }, { type: 'item', label: context.config.messages.copy_cell, run: () => copy(cell.innerText.trim(), state) })
+        if (cell && context.config.copyCell) copies.push( { type: 'item', label: context.config.messages.copy_cell, run: () => copy(cell.innerText.trim(), state) })
         const link = context.target.closest('a[href]')
-        if (link && context.config.links) items.push({ type: 'separator' }, { type: 'item', label: context.config.messages.open_link_new_tab, url: link.href, newTab: true }, { type: 'item', label: context.config.messages.copy_link, run: () => copy(link.href, state) })
+        if (link && context.config.links) links.push( { type: 'item', label: context.config.messages.open_link_new_tab, url: link.href, newTab: true }, { type: 'item', label: context.config.messages.copy_link, run: () => copy(link.href, state) })
     } else {
         items = await context.component.$call('__warpContextMenu', [], kind).catch(() => [])
     }
@@ -347,9 +371,10 @@ async function open(context, anchor, keyboard = false) {
     items = normalize(items)
     if (bulk) state.heading = selectedLabel(context.config.messages.selected, scope.getSelectedRecordsCount())
     if (clipboard.clipboardSettings()) {
-        if (kind === 'record' && context.row) items.push({ type: 'item', label: context.config.messages.copy_row, run: () => copy([...context.row.querySelectorAll('td')].filter(cell => cell.getClientRects().length && !cell.querySelector('input[type=checkbox]') && !cell.querySelector('.fi-ta-actions')).map(cell => cell.innerText.trim()).join('\t'), state) })
-        items.push({ type: 'submenu', clipboardMenu: true, label: context.config.messages.clipboard, items: clipboardItems(state) })
+        if (kind === 'record' && context.row) copies.push({ type: 'item', label: context.config.messages.copy_row, run: () => copy([...context.row.querySelectorAll('td')].filter(cell => cell.getClientRects().length && !cell.querySelector('input[type=checkbox]') && !cell.querySelector('.fi-ta-actions')).map(cell => cell.innerText.trim()).join('\t'), state) })
+        copies.push({ type: 'submenu', clipboardMenu: true, label: context.config.messages.clipboard, items: clipboardItems(state) })
     }
+    items = normalize([...items, ...(copies.length ? [{ type: 'separator' }, ...copies] : []), ...(links.length ? [{ type: 'separator' }, ...links] : [])])
     if (!items.length) { close(true); return }
     state.items = items
     state.anchor = anchor
@@ -386,7 +411,7 @@ function bootstrap(marker) {
         }
         if (active && event.key === 'Escape') {
             event.preventDefault()
-            if (active.query) { draw(active); active.menu.querySelector('input,button')?.focus() } else close(true)
+            if (active.query || active.editing) { draw(active); active.menu.querySelector('input,button')?.focus() } else close(true)
             return
         }
         if (active && !event.target.matches('input,textarea') && event.key.length === 1 && !event.ctrlKey && !event.metaKey && event.key !== ' ') {

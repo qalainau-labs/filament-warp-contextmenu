@@ -22,6 +22,8 @@ return [
     'clipboard_add' => 'Add text',
     'clipboard_add_name' => 'Name (optional)',
     'clipboard_add_value' => 'Text',
+    'back' => 'Back',
+    'clipboard_add_cancel' => 'Cancel',
     'clipboard_add_submit' => 'Save',
     'clipboard_edit' => 'Edit',
     'clipboard_saved_section' => 'Kept',

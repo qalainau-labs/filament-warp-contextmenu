@@ -22,6 +22,8 @@ return [
     'clipboard_add' => '文字を足す',
     'clipboard_add_name' => '名前（なくてもよい）',
     'clipboard_add_value' => '中身',
+    'back' => '戻る',
+    'clipboard_add_cancel' => 'やめる',
     'clipboard_add_submit' => '保存',
     'clipboard_edit' => '直す',
     'clipboard_saved_section' => '保存したもの',

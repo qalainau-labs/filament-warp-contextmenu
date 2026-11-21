@@ -98,3 +98,16 @@ it('returns focus to an action when clearing the search of a small menu', async 
     expect(document.querySelector('.fi-wcm-search')).toBeNull()
     expect(document.activeElement).toBe(document.querySelector('[role=menuitem]'))
 })
+
+it('keeps copy conveniences together before underlying link actions', async () => {
+    const config = JSON.parse(marker.dataset.warpContextMenuConfig)
+    Object.assign(config, { copyCell: true, links: true, clipboard: { enabled: true, key: 'test-grouping', limit: 10, persist: true } })
+    Object.assign(config.messages, { copy_row: 'Copy row', clipboard: 'Clipboard' })
+    marker.dataset.warpContextMenuConfig = JSON.stringify(config)
+    target.innerHTML = '<a href="https://example.com">Alice</a>'
+    target = target.querySelector('a')
+    rightClick(); await flush()
+    const nodes = [...document.querySelector('[role=menu]').children].filter(node => !node.matches('input'))
+    expect(nodes.map(node => node.getAttribute('role'))).toEqual(['menuitem', 'separator', 'menuitem', 'menuitem', 'menuitem', 'separator', 'menuitem', 'menuitem'])
+    expect(nodes.map(node => node.getAttribute('aria-label')).filter(Boolean)).toEqual(['Edit', 'Copy', 'Copy row', 'Clipboard', 'Open', 'Link'])
+})

@@ -8,6 +8,7 @@ use Filament\Actions\BulkAction;
 use Filament\Actions\Contracts\HasActions;
 use Filament\Facades\Filament;
 use Filament\Support\Facades\FilamentAsset;
+use Filament\Support\View\Components\ButtonComponent;
 use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Model;
@@ -268,6 +269,11 @@ final class Menus
             'copyCell' => $table ? Macros::get($table, 'copyCell', true) : false,
             'links' => $table ? Macros::get($table, 'links', true) : false,
             'bulk' => $table ? Macros::get($table, 'bulkEnabled', false) : false,
+            'locale' => app()->getLocale(),
+            'clipboardButtons' => collect(['save' => 'primary', 'cancel' => 'gray'])->map(fn (string $color) => (new \Filament\Support\View\ComponentAttributeBag)
+                ->class(['fi-btn', 'fi-size-sm'])
+                ->color(ButtonComponent::make(), $color)
+                ->getAttributes())->all(),
             'messages' => __('warp-contextmenu::contextmenu'),
             'css' => FilamentAsset::getStyleHref('warp-contextmenu', WarpContextMenuServiceProvider::$assetPackage),
         ];
