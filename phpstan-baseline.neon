@@ -1,7 +1,2 @@
 parameters:
-	ignoreErrors:
-		-
-			message: '#^Dead catch \- Filament\\Exceptions\\NoDefaultPanelSetException is never thrown in the try block\.$#'
-			identifier: catch.neverThrown
-			count: 1
-			path: src/Tenancy/TenantOwnership.php
+	ignoreErrors: []

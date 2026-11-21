@@ -100,7 +100,7 @@ function place(menu, anchor, submenu = false) {
 async function copy(value, state) {
     try {
         await navigator.clipboard.writeText(value)
-        clipboard.capture(value, clipboard.sourceFor(state.context.target))
+        clipboard.capture(value, clipboard.sourceFor(state.context.target), state.context.target)
         announce(state.context.config.messages.copied)
     } catch {
         announce(state.context.config.messages.copy_failed)
@@ -300,7 +300,7 @@ function editor(state, entry = null) {
     const valueLabel = el('label', '', state.context.config.messages.clipboard_add_value)
     const value = el('textarea', ''); value.value = entry?.value ?? ''; value.required = true; valueLabel.append(value)
     const submit = el('button', 'fi-btn fi-size-sm fi-color-primary', state.context.config.messages.clipboard_add_submit); submit.type = 'submit'
-    const validate = () => { submit.disabled = !value.value.trim() }; validate(); value.addEventListener('input', validate)
+    const validate = () => { submit.disabled = !value.value.trim() || value.value.length > 5000 }; validate(); value.addEventListener('input', validate)
     const cancel = el('button', 'fi-btn fi-size-sm fi-color-gray', state.context.config.messages.clipboard_add_cancel); cancel.type = 'button'
     for (const [key, button] of [['save', submit], ['cancel', cancel]]) {
         for (const [attribute, value] of Object.entries(state.context.config.clipboardButtons?.[key] ?? {})) button.setAttribute(attribute, value)
@@ -308,7 +308,7 @@ function editor(state, entry = null) {
     cancel.addEventListener('click', () => { draw(state); state.menu.querySelector('input,button')?.focus() })
     const actions = el('div', 'fi-warp-contextmenu-menu-editor-actions'); actions.append(submit, cancel)
     form.append(nameLabel, valueLabel, actions)
-    form.addEventListener('submit', event => { event.preventDefault(); if (!value.value.trim()) return; clipboard.save(value.value, name.value, entry?.value ?? null); refreshClipboard(state) })
+    form.addEventListener('submit', event => { event.preventDefault(); if (!value.value.trim() || value.value.length > 5000) return; clipboard.save(value.value, name.value, entry?.value ?? null); refreshClipboard(state) })
     state.menu.append(form); place(state.menu, state.anchor); value.focus()
 }
 

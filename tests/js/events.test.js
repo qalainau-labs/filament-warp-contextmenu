@@ -187,7 +187,7 @@ it('hides Remove all for empty clipboard history and shows it for recent entries
     Object.assign(config.messages, { clipboard: 'Clipboard', clipboard_empty: 'Nothing copied yet', clipboard_clear_all: 'Remove all', clipboard_add: 'Add text' })
     marker.dataset.warpContextMenuConfig = JSON.stringify(config)
     for (const entries of [[], [{ value: 'Recent text', time: Date.now() }]]) {
-        localStorage.setItem(config.clipboard.key, JSON.stringify(entries))
+        sessionStorage.setItem(`${config.clipboard.key}:recent`, JSON.stringify(entries))
         rightClick(); await flush()
         const button = [...document.querySelectorAll('[role=menuitem]')].find(node => node.getAttribute('aria-label') === 'Clipboard')
         button.click()
@@ -197,7 +197,7 @@ it('hides Remove all for empty clipboard history and shows it for recent entries
         expect(submenu.textContent).toContain('＋ Add text')
         document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
     }
-    localStorage.removeItem(config.clipboard.key)
+    sessionStorage.removeItem(`${config.clipboard.key}:recent`)
 })
 
 

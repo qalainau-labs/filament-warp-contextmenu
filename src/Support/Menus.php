@@ -198,36 +198,46 @@ final class Menus
 
                 continue;
             }
-            $action->record($record);
-            if (! $action->isVisible() || ($action instanceof Action && ! $action->isAuthorized())) {
-                continue;
-            }
-            if ($action instanceof ActionGroup) {
-                $children = self::serialize($action->getActions(), $record);
-                if ($children !== []) {
-                    $items[] = ['type' => $action->hasDropdown() ? 'submenu' : 'section', 'label' => self::text($action->getLabel()), 'icon' => self::icon($action->getBaseIcon()), 'items' => $children];
+            // Preserve the unevaluated value, including record resolver closures.
+            $originalRecord = (function () {
+                return $this->record;
+            })->call($action);
+            try {
+                if ($record !== null) {
+                    $action->record($record);
                 }
-
-                continue;
-            }
-            if (Macros::get($action, 'copy') !== null && $record instanceof Model) {
-                $policy = Gate::getPolicyFor($record);
-                if ($policy && method_exists($policy, 'view') && ! Gate::allows('view', $record)) {
+                if (! $action->isVisible() || ($action instanceof Action && ! $action->isAuthorized())) {
                     continue;
                 }
+                if ($action instanceof ActionGroup) {
+                    $children = self::serialize($action->getActions(), $record);
+                    if ($children !== []) {
+                        $items[] = ['type' => $action->hasDropdown() ? 'submenu' : 'section', 'label' => self::text($action->getLabel()), 'icon' => self::icon($action->getBaseIcon()), 'items' => $children];
+                    }
+
+                    continue;
+                }
+                if (Macros::get($action, 'copy') !== null && $record instanceof Model) {
+                    $policy = Gate::getPolicyFor($record);
+                    if ($policy && method_exists($policy, 'view') && ! Gate::allows('view', $record)) {
+                        continue;
+                    }
+                }
+                $items[] = [
+                    'type' => 'item', 'name' => $action->getName(), 'label' => self::text($action->getLabel()),
+                    'icon' => self::icon($action->getGroupedIcon() ?? $action->getIcon()), 'color' => $action->getColor(),
+                    'disabled' => $action->isDisabled(), 'tooltip' => self::text($action->getTooltip()),
+                    'badge' => self::text($action->getBadge()), 'shortcut' => $action->getKeyBindings(),
+                    'checked' => (bool) $action->evaluate(Macros::get($action, 'checked', false)),
+                    'checkable' => Macros::get($action, 'checked') !== null,
+                    'url' => $action->getUrl(), 'newTab' => $action->shouldOpenUrlInNewTab(),
+                    'keywords' => $action->evaluate(Macros::get($action, 'keywords', [])),
+                    'copyValue' => Macros::get($action, 'copy') !== null ? (string) $action->evaluate(Macros::get($action, 'copy')) : null,
+                    'context' => $action->getContext(), 'arguments' => $action->getArguments(),
+                ];
+            } finally {
+                $action->record($originalRecord);
             }
-            $items[] = [
-                'type' => 'item', 'name' => $action->getName(), 'label' => self::text($action->getLabel()),
-                'icon' => self::icon($action->getGroupedIcon() ?? $action->getIcon()), 'color' => $action->getColor(),
-                'disabled' => $action->isDisabled(), 'tooltip' => self::text($action->getTooltip()),
-                'badge' => self::text($action->getBadge()), 'shortcut' => $action->getKeyBindings(),
-                'checked' => (bool) $action->evaluate(Macros::get($action, 'checked', false)),
-                'checkable' => Macros::get($action, 'checked') !== null,
-                'url' => $action->getUrl(), 'newTab' => $action->shouldOpenUrlInNewTab(),
-                'keywords' => $action->evaluate(Macros::get($action, 'keywords', [])),
-                'copyValue' => Macros::get($action, 'copy') !== null ? (string) $action->evaluate(Macros::get($action, 'copy')) : null,
-                'context' => $action->getContext(), 'arguments' => $action->getArguments(),
-            ];
         }
 
         return self::normalize($items);
@@ -264,7 +274,11 @@ final class Menus
         $panel = Filament::getCurrentPanel();
         $plugin = $panel?->hasPlugin('warp-contextmenu') ? $panel->getPlugin('warp-contextmenu') : null;
         $clipboard = $plugin instanceof WarpContextMenuPlugin ? $plugin->getClipboardConfig() : ['enabled' => false];
-        $clipboard['key'] = 'warp-contextmenu:'.hash('sha256', json_encode([$panel?->getId(), Filament::auth()->id()]));
+        if ($panel !== null && ($userId = Filament::auth()->id()) !== null) {
+            $clipboard['key'] = 'warp-contextmenu:'.hash('sha256', json_encode([$panel->getId(), $userId, Filament::getTenant()?->getKey()]));
+        } else {
+            $clipboard['enabled'] = false;
+        }
 
         return [
             'clipboard' => $clipboard,

@@ -5,26 +5,43 @@ let installed = false
 let lastPointerTarget = null
 const settings = () => {
     const markers = [...document.querySelectorAll('[data-warp-context-menu-config]')]
-    return markers.map(marker => JSON.parse(marker.dataset.warpContextMenuConfig)).find(config => config.clipboard?.enabled)?.clipboard
+    return markers.map(marker => JSON.parse(marker.dataset.warpContextMenuConfig)).find(config => config.clipboard?.enabled && typeof config.clipboard.key === 'string')?.clipboard
 }
 export function clipboardSettings() { return settings() }
 export function entries() {
     const config = settings()
     if (!config) { current = null; return [] }
-    const storage = config.persist ? localStorage : sessionStorage
-    // Never reuse an in-memory list across identities or panel navigation.
-    current = { key: config.key, storage, config }
-    try {
-        const data = JSON.parse(storage.getItem(config.key) ?? '[]')
-        return history.limitItems(Array.isArray(data) ? data.filter(item => item && typeof item === 'object') : [], config.limit)
-    } catch { return [] }
+    // Recent copies never survive closing a tab; only explicitly kept text persists.
+    current = { key: config.key, storage: config.persist ? localStorage : sessionStorage, config }
+    const read = (storage, key) => {
+        try {
+            const data = JSON.parse(storage.getItem(key) ?? '[]')
+            return Array.isArray(data) ? data.filter(item => item && typeof item === 'object') : []
+        } catch { return [] }
+    }
+    return history.limitItems([
+        ...read(current.storage, config.key).filter(item => item.kept),
+        ...read(sessionStorage, `${config.key}:recent`).filter(item => !item.kept),
+    ], config.limit)
 }
 function update(transform) {
     const items = entries()
     if (!current) return
-    try { current.storage.setItem(current.key, JSON.stringify(transform(items, current.config.limit))) } catch { /* Storage may be unavailable. */ }
+    const next = transform(items, current.config.limit)
+    try { current.storage.setItem(current.key, JSON.stringify(next.filter(item => item.kept))) } catch { /* Storage may be unavailable. */ }
+    try { sessionStorage.setItem(`${current.key}:recent`, JSON.stringify(next.filter(item => !item.kept))) } catch { /* Storage may be unavailable. */ }
 }
-export function capture(value, source = document.title) {
+export function excluded(target) {
+    if (!(target instanceof Element)) return false
+    if (target.closest('[data-warp-no-clipboard]')) return true
+    const field = target.closest('input, textarea')
+    if (!field) return false
+    if (field.matches('input[type=password]')) return true
+    if ((field.getAttribute('autocomplete') ?? '').toLowerCase().split(/\s+/).some(token => ['one-time-code', 'new-password', 'current-password'].includes(token))) return true
+    return [...field.attributes].some(attribute => (attribute.name === ':type' || attribute.name.startsWith('x-bind:type')) && /password/i.test(attribute.value))
+}
+export function capture(value, source = document.title, target = document.activeElement) {
+    if (excluded(target) || excluded(document.activeElement)) return
     update((items, limit) => history.add(items, { value, source, time: Date.now() }, limit))
 }
 export const keep = (value, kept) => update((items, limit) => history.keep(items, value, kept, limit))
@@ -35,7 +52,7 @@ export function save(value, name, previous = null) {
         ? history.add(items, { value, name, kept: true, addedByUser: true, source: null, time: Date.now() }, limit)
         : history.edit(items, previous, { value, name, kept: true, time: Date.now() }, limit))
 }
-export const inputTarget = target => target instanceof Element && target.matches('textarea, input:not([type]), input[type=text], input[type=email], input[type=search], input[type=url], input[type=tel], input[type=number]') && !target.disabled && !target.readOnly && !target.closest('.fi-warp-contextmenu-menu')
+export const inputTarget = target => target instanceof Element && target.matches('textarea, input:not([type]), input[type=text], input[type=email], input[type=search], input[type=url], input[type=tel], input[type=number]') && !excluded(target) && !target.disabled && !target.readOnly && !target.closest('.fi-warp-contextmenu-menu')
 export function paste(target, value, selection) {
     const start = selection?.[0] ?? target.selectionStart ?? target.value.length
     const end = selection?.[1] ?? target.selectionEnd ?? start
@@ -58,32 +75,22 @@ export function installClipboard() {
     if (installed) return
     installed = true
     document.addEventListener('pointerdown', event => { lastPointerTarget = event.target }, true)
-    const password = () => document.activeElement?.matches('input[type=password]')
     document.addEventListener('copy', event => {
-        if (password() || event.target?.closest?.('input[type=password]')) return
+        if (excluded(document.activeElement) || excluded(event.target)) return
         const target = event.target
         const selected = inputTarget(target) ? target.value.slice(target.selectionStart ?? 0, target.selectionEnd ?? 0) : window.getSelection()?.toString()
-        capture(selected ?? '', sourceFor(target))
+        capture(selected ?? '', sourceFor(target), target)
     })
     if (navigator.clipboard?.writeText) {
         const original = navigator.clipboard.writeText.bind(navigator.clipboard)
         try {
             navigator.clipboard.writeText = async value => {
-                const blocked = password(), source = sourceFor(lastPointerTarget?.isConnected ? lastPointerTarget : document.activeElement)
+                const blocked = excluded(document.activeElement), source = sourceFor(lastPointerTarget?.isConnected ? lastPointerTarget : document.activeElement)
                 await original(value)
                 if (!blocked) capture(value, source)
             }
         } catch { /* Explicit plugin copies and native copy events still work. */ }
     }
-    document.addEventListener('submit', event => {
-        if (!(event.target instanceof HTMLFormElement)) return
-        try {
-            const url = new URL(event.target.action, location.href)
-            if (url.origin !== location.origin || !/\/logout\/?$/.test(url.pathname)) return
-            entries()
-            if (current) { localStorage.removeItem(current.key); sessionStorage.removeItem(current.key); current = null }
-        } catch { /* Ignore unrelated forms. */ }
-    }, true)
 }
 
 // Mirror typography and scrolling to anchor the keyboard picker at the text caret.

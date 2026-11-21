@@ -77,6 +77,12 @@ class WarpContextMenuServiceProvider extends PackageServiceProvider
         Livewire::listen('call', function (Component $component, $method, $params, $context, $returnEarly): void {
             if ($method === '__warpContextMenu') {
                 $component->skipRender();
+                if (request()->attributes->get('warpContextMenuFetched', false)) {
+                    $returnEarly([]);
+
+                    return;
+                }
+                request()->attributes->set('warpContextMenuFetched', true);
                 $kind = array_key_exists(1, $params) ? $params[1] : 'record';
                 $returnEarly(Menus::fetch($component, is_array($params[0] ?? null) ? $params[0] : [], is_string($kind) ? $kind : ''));
 

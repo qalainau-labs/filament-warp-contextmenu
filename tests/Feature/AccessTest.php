@@ -118,13 +118,19 @@ it('evaluates copy values per visible record and keywords on the server', functi
     });
 });
 
-it('hashes panel and user identities and supports session-only storage', function () {
+it('hashes panel user and tenant identities and supports session-only storage', function () {
     $plugin = Filament::getCurrentPanel()->getPlugin('warp-contextmenu')->clipboard(limit: 2, persist: false);
     $first = Menus::clientConfig('record')['clipboard'];
     expect($first)->toMatchArray(['enabled' => true, 'limit' => 2, 'persist' => false]);
-    expect($first['key'])->toBe('warp-contextmenu:'.hash('sha256', json_encode(['admin', auth()->id()])));
+    expect($first['key'])->toBe('warp-contextmenu:'.hash('sha256', json_encode(['admin', auth()->id(), null])));
     $this->actingAs(User::create(['name' => 'Other', 'email' => 'other@example.com']));
     expect(Menus::clientConfig('record')['clipboard']['key'])->not->toBe($first['key']);
+    Filament::setTenant($tenant = Team::create(['name' => 'First tenant']), isQuiet: true);
+    $tenantKey = Menus::clientConfig('record')['clipboard']['key'];
+    expect($tenantKey)->toBe('warp-contextmenu:'.hash('sha256', json_encode(['admin', auth()->id(), $tenant->getKey()])));
+    Filament::setTenant(Team::create(['name' => 'Other tenant']), isQuiet: true);
+    expect(Menus::clientConfig('record')['clipboard']['key'])->not->toBe($tenantKey);
+    Filament::setTenant(null, isQuiet: true);
     $plugin->clipboard(false);
 });
 
@@ -152,4 +158,14 @@ it('allows copy for a model without a policy and ordinary payloads for blocked v
 
         return true;
     });
+});
+
+it('disables clipboard without creating a storage key for guests or missing panels', function () {
+    $plugin = Filament::getCurrentPanel()->getPlugin('warp-contextmenu')->clipboard();
+    Filament::auth()->logout();
+    expect(Menus::clientConfig('record')['clipboard'])->toMatchArray(['enabled' => false])->not->toHaveKey('key');
+    $this->actingAs(manager());
+    Filament::setCurrentPanel(null);
+    expect(Menus::clientConfig('record')['clipboard'])->toMatchArray(['enabled' => false])->not->toHaveKey('key');
+    $plugin->clipboard(false);
 });

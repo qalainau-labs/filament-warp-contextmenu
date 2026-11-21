@@ -252,7 +252,7 @@ use Qalainau\FilamentWarpContextMenu\WarpContextMenuPlugin;
 
 $panel->plugin(WarpContextMenuPlugin::make()->clipboard());
 
-// Or keep history only for the lifetime of the browser tab:
+// Or keep saved text only for the lifetime of the browser tab too:
 $panel->plugin(WarpContextMenuPlugin::make()->clipboard(limit: 10, persist: false));
 ```
 
@@ -260,7 +260,7 @@ $panel->plugin(WarpContextMenuPlugin::make()->clipboard(limit: 10, persist: fals
 | --- | --- | --- |
 | `bool $enabled` | `true` | Enable or disable clipboard capture and pickers. |
 | `int $limit` | `10` | Maximum recent values; negative limits become zero. Kept values do not count. |
-| `bool $persist` | `true` | `localStorage`; `false` uses `sessionStorage`. |
+| `bool $persist` | `true` | Saved text uses `localStorage`; `false` keeps it in `sessionStorage`. Recent copies always use `sessionStorage`. |
 
 Disable **Copy row** and **Clipboard ›** for one table's row and cell menus while keeping panel copy capture and input paste enabled:
 
@@ -272,7 +272,7 @@ Calling `contextMenuClipboard()` restores these menu entries when the panel's `c
 
 Copies inside the panel enter history: Ctrl+C / ⌘C, the browser's Copy command, Filament `copyable()` fields using `navigator.clipboard.writeText`, and this plugin's cell, row, link and custom copy actions. Capturing the native copy event and wrapping clipboard writes does not read the operating system clipboard. Copies from Excel, email or another app cannot be collected automatically: browsers require explicit user permission and interaction to read that clipboard.
 
-History stores the text, its source when known (for example, an invoice number and column label; otherwise the page title), and its copy time. Source and localized relative time appear below the value. Copying the same value moves it to the top. Whitespace-only values are ignored. Older recent copies fall out after ten values by default. **Keep** saves an item until you stop keeping or remove it; kept items appear first and do not consume the recent limit. **Remove all except kept items** clears only the recent values.
+History stores the text, its source when known (for example, an invoice number and column label; otherwise the page title), and its copy time. Source and localized relative time appear below the value. Copying the same value moves it to the top. Whitespace-only values and entries longer than 5,000 characters are ignored. Older recent copies fall out after ten values by default. **Keep** saves an item until you stop keeping or remove it; kept items appear first and do not consume the recent limit. **Remove all except kept items** clears only the recent values.
 
 Choose **＋ Add text** to type a multiline value and an optional name. **Save** is disabled while the text is empty or whitespace. **Cancel** or Escape returns to the list. Named kept items show the name in bold and a one-line preview of the text. You can edit the name and value or remove the item. Searching a clipboard list matches both the name and text.
 
@@ -282,9 +282,21 @@ There are three ways in:
 2. Press Ctrl+Shift+V (⌘⇧V on Mac) in a text input to open the picker near the caret, including when history is empty so you can add text.
 3. Open **Clipboard ›** in a row, cell or page menu to copy a value again, keep it, edit kept text, or remove values.
 
-Pasting replaces the selected range or inserts at the caret and dispatches an `input` event for Livewire and Alpine. Disabled and read-only fields do not offer paste. Password fields do not capture copies or offer a picker.
+Pasting replaces the selected range or inserts at the caret and dispatches an `input` event for Livewire and Alpine. Disabled and read-only fields do not offer paste. Password fields do not capture copies or offer a picker, including Filament revealable password fields while revealed (identified by bindings such as `x-bind:type` or `:type` containing `password`). Fields with `autocomplete="one-time-code"`, `"new-password"` or `"current-password"` are also excluded.
 
-Values stay in the browser, are never sent to the server by the clipboard feature, and are stored per panel and signed-in user (a hashed identity key). The plugin clears the active bucket on Filament's logout form submission. Another user's bucket is not read. Persisted copies can contain personal data and remain in this browser; choose `persist: false` when they should disappear on closing the tab. Standard browser storage restrictions can prevent saving history.
+Add `data-warp-no-clipboard` to an element or a containing region to exclude sensitive copies and the input picker:
+
+```html
+<div data-warp-no-clipboard>
+    <input type="text" name="private_reference">
+</div>
+```
+
+Native copies check the event target and focused element; programmatic `navigator.clipboard.writeText()` calls check the element focused when the call starts. These exclusions prevent history capture without preventing the system clipboard write.
+
+Values stay in the browser and are never sent to the server by the clipboard feature. **Recent** copies always use `sessionStorage` and disappear when the tab closes. Only values explicitly saved with **Keep** or **＋ Add text** use `localStorage` by default. Logging out preserves this intentionally saved text: the same user can access it after logging in again. Choose `persist: false` to keep saved text in `sessionStorage` too, so closing the tab removes both lists.
+
+Storage keys hash the panel, signed-in user and current tenant. Another user's or tenant's bucket is not read. Capture and pickers are disabled without a current panel or signed-in user. Browser storage is not encrypted, and standard browser storage restrictions can prevent saving history.
 
 ## Keyboard
 
@@ -313,11 +325,11 @@ Menus use WAI-ARIA `menu`, `menuitem`, `menuitemcheckbox`, `separator` and `grou
 
 ## Security
 
-Record keys received from the browser are looked up again through Filament's table query. A deleted record or a record outside the current tenant returns no actions. The request accepts at most 100 keys; sending extra keys does not bypass query scoping. Keep your resource query and policies configured as you would for ordinary table actions.
+Record keys received from the browser are looked up again through Filament's table query. A deleted record or a record outside the current tenant returns no actions. Only the first `__warpContextMenu` call in each Livewire request is evaluated; subsequent calls return an empty array. The request accepts at most 100 keys; sending extra keys does not bypass query scoping. Keep your resource query and policies configured as you would for ordinary table actions.
 
-Visibility and authorization are evaluated before serialization. Hidden and unauthorized action names and labels are not disclosed. Clicking an executable action goes through Filament's normal mounting and authorization checks; a menu payload is not permission to run an action. Custom copy actions also respect a model's `view` policy when it defines one.
+Visibility and authorization are evaluated before serialization. Hidden and unauthorized action names and labels are not disclosed. Clicking an executable action goes through Filament's normal mounting and authorization checks; a menu payload is not permission to run an action. Custom copy actions also respect a model's `view` policy when it defines one. `contextMenuCopy()` values are prefetched to the browser of anyone allowed to view the row as soon as the pointer enters it; do not use this API for secrets.
 
-Labels, tooltips, clipboard text and search paths are rendered as text. Only icons generated by Filament are inserted as SVG markup. Navigation filters unsafe URL schemes. Clipboard history itself is browser storage, not encrypted storage; the clipboard feature does not send it to the server.
+Labels, tooltips, clipboard text and search paths are rendered as text. Only icons generated by Filament are inserted as SVG markup. Do not pass user-supplied data to `icon()`. Navigation filters unsafe URL schemes. Clipboard history itself is browser storage, not encrypted storage; the clipboard feature does not send it to the server.
 
 ## Translations
 
