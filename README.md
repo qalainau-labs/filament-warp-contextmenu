@@ -40,7 +40,7 @@ Right-click a Filament table row, cell, selection or page to use native Filament
 
 ## Installation
 
-Requires **Filament 5.3.2 or later** and PHP 8.3 or later.
+Requires **Filament 5.9.0 or later** and PHP 8.3 or later.
 
 ```bash
 composer require qalainau/filament-warp-contextmenu
@@ -381,7 +381,7 @@ php artisan boost:install --guidelines --skills -n
 
 - PHP 8.3 or later
 - Laravel 12 or 13
-- Filament 5.3.2 or later
+- Filament 5.9.0 or later
 - Filament's standard JavaScript and CSS assets
 
 ### Tested on
