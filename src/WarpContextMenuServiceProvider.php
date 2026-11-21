@@ -90,14 +90,21 @@ class WarpContextMenuServiceProvider extends PackageServiceProvider
                     $component->skipRender();
                     Macros::set($component, 'skippedMenuRender', true);
                 }
-                if (request()->attributes->get('warpContextMenuFetched', false)) {
+                $keys = is_array($params[0] ?? null) ? $params[0] : [];
+                $kind = array_key_exists(1, $params) ? $params[1] : 'record';
+                $kind = is_string($kind) ? $kind : '';
+                // Livewire bundles hover prefetches with other menu requests. Keep
+                // duplicate protection per component/surface, allowing entry keys.
+                $requestKey = serialize([$component->getId(), $kind, $kind === 'entry' ? ($keys[0] ?? null) : null]);
+                $fetched = request()->attributes->get('warpContextMenuFetched', []);
+                if (isset($fetched[$requestKey])) {
                     $returnEarly([]);
 
                     return;
                 }
-                request()->attributes->set('warpContextMenuFetched', true);
-                $kind = array_key_exists(1, $params) ? $params[1] : 'record';
-                $returnEarly(Menus::fetch($component, is_array($params[0] ?? null) ? $params[0] : [], is_string($kind) ? $kind : ''));
+                $fetched[$requestKey] = true;
+                request()->attributes->set('warpContextMenuFetched', $fetched);
+                $returnEarly(Menus::fetch($component, $keys, $kind));
 
                 return;
             }

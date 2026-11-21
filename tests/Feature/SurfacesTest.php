@@ -1,6 +1,7 @@
 <?php
 
 use Filament\Actions\Action;
+use Filament\Actions\BulkAction;
 use Filament\Facades\Filament;
 use Filament\Infolists\Components\Entry;
 use Filament\Tables\Columns\TextColumn;
@@ -98,4 +99,30 @@ it('renders native sorting when bundled with a menu prefetch in either order', f
         expect($page->effects)->toHaveKey('html');
         expect($page->effects['html'])->toContain('aria-sort="descending"');
     }
+});
+
+it('returns each surface when prefetches share a Livewire request', function () {
+    view()->addNamespace('warp-contextmenu', __DIR__.'/../views');
+    Customer::create(['name' => 'Bundled entries']);
+    $page = livewire(EntryPage::class)->update([
+        ['method' => '__warpContextMenu', 'params' => [[], 'page']],
+        ['method' => '__warpContextMenu', 'params' => [['infolist.name'], 'entry']],
+        ['method' => '__warpContextMenu', 'params' => [['infolist.email'], 'entry']],
+    ]);
+    expect($page->effects['returns'][0])->toBe([]);
+    expect($page->effects['returns'][1]['copyValue'])->toBeTrue();
+    expect($page->effects['returns'][1]['items'][0]['items'][0]['name'])->toBe('renameEntry');
+    expect($page->effects['returns'][2])->toBe(['items' => [], 'copyValue' => false]);
+});
+
+it('returns bulk actions alongside a table prefetch in one request', function () {
+    MenuTable::$configure = fn (Table $table) => $table->toolbarActions([
+        BulkAction::make('bulkAction')->label('Bulk action'),
+    ])->contextMenuBulkActions();
+    $page = livewire(MenuTable::class)->update([
+        ['method' => '__warpContextMenu', 'params' => [[], 'table']],
+        ['method' => '__warpContextMenu', 'params' => [[], 'bulk']],
+    ]);
+    expect($page->effects['returns'][0])->toHaveKey('selectable');
+    expect($page->effects['returns'][1][0]['name'])->toBe('bulkAction');
 });

@@ -269,3 +269,134 @@ it('keeps nested widget entry actions on the widget and page header actions on t
     buttons().find(button => button.getAttribute('aria-label') === 'Entry action').click()
     expect(widgetComponent.$call).toHaveBeenLastCalledWith('mountAction', 'entryAction', {}, { schemaComponent: 'infolist.name' })
 })
+
+function emptySurface(kind) {
+    const config = { kind, headers: true, tableMenu: true, clipboardMenu: false, messages: { ...messages, empty: 'No actions for this record', empty_page: 'No actions on this page', empty_table: 'No actions for this table', empty_column: 'No actions for this column', empty_entry: 'No actions for this value' }, css: 'data:text/css,' }
+    marker.dataset.warpContextMenuKind = 'record'
+    marker.dataset.warpContextMenuConfig = JSON.stringify(config)
+    if (kind === 'page' || kind === 'entry') {
+        const pageMarker = document.createElement('div')
+        pageMarker.dataset.warpContextMenuKind = 'page'
+        pageMarker.dataset.warpContextMenuConfig = JSON.stringify(config)
+        table.parentElement.append(pageMarker)
+        target = document.createElement('p')
+        target.textContent = 'Page description'
+        if (kind === 'entry') target.dataset.warpContextMenuEntry = 'infolist.name'
+        table.parentElement.append(target)
+    } else if (kind === 'column') {
+        const header = document.createElement('th')
+        header.dataset.warpContextMenuHeader = 'name'
+        table.querySelector('table').append(header)
+        target = header
+    } else target = table
+    component.$call.mockImplementation(async (method, keys, surface) => surface === 'entry' ? { items: [], copyValue: false } : [])
+}
+
+it.each(['page', 'column', 'table', 'entry'])('prefetches %s actions and preserves the native menu when empty', async kind => {
+    emptySurface(kind)
+    target.dispatchEvent(new MouseEvent('pointerover', { bubbles: true }))
+    await flush()
+    expect(component.$call).toHaveBeenCalledWith('__warpContextMenu', kind === 'entry' ? ['infolist.name'] : [], kind)
+    expect(rightClick().defaultPrevented).toBe(false)
+    expect(document.querySelector('[role=menu]')).toBeNull()
+})
+
+it.each(['page', 'column', 'table', 'entry'])('shows the %s empty message if opened before prefetch settles', async kind => {
+    emptySurface(kind)
+    expect(rightClick().defaultPrevented).toBe(true)
+    await flush()
+    const menu = document.querySelector('[role=menu]')
+    expect(menu).not.toBeNull()
+    expect(menu.textContent).toBe(JSON.parse(marker.dataset.warpContextMenuConfig).messages[`empty_${kind}`])
+    expect(menu.querySelector('button')).toBeNull()
+})
+
+it('invalidates prefetched page actions after a morph', async () => {
+    emptySurface('page')
+    target.dispatchEvent(new MouseEvent('pointerover', { bubbles: true }))
+    await flush()
+    component.$call.mockResolvedValue([{ type: 'item', name: 'fresh', label: 'Fresh' }])
+    hooks['morph.updating']({ component: { el: table.parentElement } })
+    expect(rightClick().defaultPrevented).toBe(true)
+    await flush()
+    expect(document.querySelector('[role=menu]').textContent).toContain('Fresh')
+})
+
+it('keeps built-in page commands when the prefetched page payload is empty', async () => {
+    emptySurface('page')
+    const pageMarker = document.querySelector('[data-warp-context-menu-kind="page"]')
+    const config = JSON.parse(pageMarker.dataset.warpContextMenuConfig)
+    Object.assign(config.messages, { copy_page_link: 'Copy page link', reload_page: 'Reload page', back: 'Back', forward: 'Forward' })
+    pageMarker.dataset.warpContextMenuConfig = JSON.stringify(config)
+    target.dispatchEvent(new MouseEvent('pointerover', { bubbles: true }))
+    await flush()
+    expect(rightClick().defaultPrevented).toBe(true)
+    await flush()
+    expect([...document.querySelectorAll('[role=menuitem]')].map(button => button.getAttribute('aria-label'))).toEqual(['Copy page link', 'Reload page', 'Back', 'Forward'])
+    expect(component.$call).toHaveBeenCalledTimes(1)
+})
+
+it('deduplicates pending page requests and shows the empty message on a fast right click', async () => {
+    emptySurface('page')
+    let resolve
+    component.$call.mockReturnValue(new Promise(done => { resolve = done }))
+    target.dispatchEvent(new MouseEvent('pointerover', { bubbles: true }))
+    target.dispatchEvent(new MouseEvent('pointerover', { bubbles: true }))
+    expect(rightClick().defaultPrevented).toBe(true)
+    expect(document.querySelector('[role=menu]').textContent).toBe('Loading')
+    expect(component.$call).toHaveBeenCalledTimes(1)
+    resolve([])
+    await flush()
+    expect(document.querySelector('[role=menu]').textContent).toBe('No actions on this page')
+})
+
+it('retries a failed page prefetch rather than treating failure as a known empty menu', async () => {
+    emptySurface('page')
+    component.$call.mockRejectedValueOnce(new Error('Offline'))
+    target.dispatchEvent(new MouseEvent('pointerover', { bubbles: true }))
+    await flush()
+    component.$call.mockResolvedValue([{ type: 'item', name: 'retry', label: 'Retry action' }])
+    expect(rightClick().defaultPrevented).toBe(true)
+    await flush()
+    expect(document.querySelector('[role=menu]').textContent).toBe('Retry action')
+    expect(component.$call).toHaveBeenCalledTimes(2)
+})
+
+it('keeps entry payloads separate within the same component', async () => {
+    emptySurface('entry')
+    target.dispatchEvent(new MouseEvent('pointerover', { bubbles: true }))
+    await flush()
+    const other = target.cloneNode(true)
+    other.dataset.warpContextMenuEntry = 'infolist.other'
+    target.parentElement.append(other)
+    target = other
+    component.$call.mockResolvedValue({ items: [{ type: 'item', name: 'other', label: 'Other entry' }] })
+    target.dispatchEvent(new MouseEvent('pointerover', { bubbles: true }))
+    await flush()
+    expect(rightClick().defaultPrevented).toBe(true)
+    await flush()
+    expect(document.querySelector('[role=menu]').textContent).toBe('Other entry')
+    expect(component.$call).toHaveBeenCalledWith('__warpContextMenu', ['infolist.other'], 'entry')
+    expect(component.$call).toHaveBeenCalledTimes(3)
+})
+
+it('discards page payloads on Livewire navigation', async () => {
+    emptySurface('page')
+    target.dispatchEvent(new MouseEvent('pointerover', { bubbles: true }))
+    await flush()
+    document.dispatchEvent(new Event('livewire:navigated'))
+    component.$call.mockResolvedValue([{ type: 'item', name: 'next', label: 'Next page' }])
+    expect(rightClick().defaultPrevented).toBe(true)
+    await flush()
+    expect(document.querySelector('[role=menu]').textContent).toBe('Next page')
+})
+
+it('shows the existing record empty message when the first fetch returns no actions', async () => {
+    const config = JSON.parse(marker.dataset.warpContextMenuConfig)
+    config.messages.empty = 'No actions for this record'
+    marker.dataset.warpContextMenuConfig = JSON.stringify(config)
+    component.$call.mockResolvedValue({ abc: { items: [], cells: {} } })
+    expect(rightClick().defaultPrevented).toBe(true)
+    await flush()
+    expect(document.querySelector('[role=menu]').textContent).toBe('No actions for this record')
+})

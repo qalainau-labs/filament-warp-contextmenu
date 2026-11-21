@@ -8,6 +8,7 @@ import { position, normalize, navigate, shortcut, longPress, safeTriangle, selec
 let installed = false
 let cache = new WeakMap()
 let settledRows = new WeakMap()
+let surfaceCache = new WeakMap()
 let active = null
 let lastRow = null
 let touch = null
@@ -41,7 +42,7 @@ function targetFor(target) {
     const component = window.Livewire?.find(componentEl?.getAttribute('wire:id'))
     if (!component) return null
     const config = { ...JSON.parse(selected.dataset.warpContextMenuConfig), kind }
-    return { row: key ? row : null, key, table, entry, column: header?.dataset.warpContextMenuHeader, config, component, pageComponent: pageComponentEl ? window.Livewire?.find(pageComponentEl.getAttribute('wire:id')) : null, componentEl, target }
+    return { row: key ? row : null, key, table, entry, column: header?.dataset.warpContextMenuHeader, config, component, pageComponentEl, pageComponent: pageComponentEl ? window.Livewire?.find(pageComponentEl.getAttribute('wire:id')) : null, componentEl, target }
 
 }
 
@@ -72,8 +73,74 @@ function fetchRows(context) {
     return entry
 }
 
+// Cache each surface independently: entries in one component have different payloads.
+function surfaceRequest(context, kind = context.config.kind) {
+    const page = kind === 'page' && context.config.kind === 'entry'
+    const componentEl = page ? context.pageComponentEl ?? context.componentEl : context.componentEl
+    const component = page ? context.pageComponent ?? context.component : context.component
+    let entries = surfaceCache.get(componentEl)
+    if (!entries) { entries = new Map(); surfaceCache.set(componentEl, entries) }
+    const keys = kind === 'entry' ? [context.entry.dataset.warpContextMenuEntry] : []
+    const key = JSON.stringify([kind, keys])
+    return { entries, key, component, keys, kind }
+}
+
+function fetchSurface(context, kind = context.config.kind) {
+    const request = surfaceRequest(context, kind)
+    let entry = request.entries.get(request.key)
+    if (entry) return entry.promise
+    entry = { settled: false }
+    entry.promise = request.component.$call('__warpContextMenu', request.keys, kind).then(payload => {
+        entry.payload = payload
+        entry.settled = true
+        return payload
+    }).catch(() => { request.entries.delete(request.key); return null })
+    request.entries.set(request.key, entry)
+    return entry.promise
+}
+
+function settledSurface(context, kind = context.config.kind) {
+    const request = surfaceRequest(context, kind)
+    return request.entries.get(request.key)
+}
+
+function pageCopies(context, state) {
+    const messages = context.config.messages
+    const items = [
+        { type: 'item', label: messages.copy_page_link, run: () => copy(location.href, state) },
+        { type: 'item', label: messages.reload_page, run: () => location.reload() },
+        { type: 'item', label: messages.back, run: () => history.back() },
+        { type: 'item', label: messages.forward, run: () => history.forward() },
+    ]
+    const selectedText = window.getSelection()?.toString().trim()
+    if (selectedText) items.push({ type: 'item', label: messages.copy_selection, run: () => copy(selectedText, state) })
+    return items.filter(item => item.label)
+}
+
+function entryItems(context, payload, pageItems, state) {
+    const items = [...(payload?.items ?? [])]
+    if (payload?.copyValue) items.push({ type: 'item', label: context.config.messages.copy_value, run: () => copy((context.entry.querySelector('[data-warp-context-menu-entry-value]') ?? context.entry).innerText.trim(), state) })
+    const owner = context.pageComponent ?? context.component
+    const owned = items => items.map(item => ({ ...item, owner, ...(item.items ? { items: owned(item.items) } : {}) }))
+    return [...items, { type: 'separator' }, ...owned(pageItems ?? [])]
+}
+
 function isKnownEmpty(context) {
-    if (!context.row) return false
+    if (!context.row) {
+        const entry = settledSurface(context)
+        if (!entry?.settled) return false
+        const kind = context.config.kind
+        let items
+        if (kind === 'entry') {
+            const page = settledSurface(context, 'page')
+            if (!page?.settled) return false
+            items = entryItems(context, entry.payload, page.payload, null)
+        } else if (kind === 'table' || kind === 'column') items = tableItems(context, entry.payload, null, null)
+        else items = entry.payload ?? []
+        if (kind === 'page' || kind === 'entry') items = [...items, ...pageCopies(context, null)]
+        if (['page', 'entry'].includes(kind) && context.config.clipboardMenu !== false && clipboard.clipboardSettings()) return false
+        return normalize(items).length === 0
+    }
     const scope = window.Alpine.$data(context.table)
     if (context.config.bulk && scope.getSelectedRecordsCount?.() >= 2 && scope.isRecordSelected(context.key)) return false
     const row = settledRows.get(context.componentEl)?.[context.key]
@@ -292,7 +359,7 @@ function draw(state, query = '') {
         })
         menu.append(input)
     }
-    if (!visible.length) menu.append(el('div', 'fi-warp-contextmenu-menu-heading', context.config.messages.search_empty.replace(':query', query)))
+    if (!visible.length) menu.append(el('div', 'fi-warp-contextmenu-menu-heading', query ? context.config.messages.search_empty.replace(':query', query) : context.config.messages[`empty_${state.kind}`] ?? context.config.messages.empty))
     renderItems(menu, visible, state)
     if (state.pasteTarget) menu.append(el('div', 'fi-warp-contextmenu-menu-detail', context.config.messages.clipboard_native_hint))
     place(menu, state.anchor)
@@ -421,28 +488,15 @@ async function open(context, anchor, keyboard = false) {
         const link = context.target.closest('a[href]')
         if (link && context.config.links) links.push( { type: 'item', label: context.config.messages.open_link_new_tab, url: link.href, newTab: true }, { type: 'item', label: context.config.messages.copy_link, run: () => copy(link.href, state) })
     } else if (kind === 'column' || kind === 'table') {
-        const payload = await context.component.$call('__warpContextMenu', [], kind).catch(() => null)
+        const payload = await fetchSurface(context)
         items = tableItems(context, payload, state, scope)
     } else if (kind === 'entry') {
-        const payload = await context.component.$call('__warpContextMenu', [context.entry.dataset.warpContextMenuEntry], 'entry').catch(() => null)
-        items = [...(payload?.items ?? [])]
-        if (payload?.copyValue) items.push({ type: 'item', label: context.config.messages.copy_value, run: () => copy((context.entry.querySelector('[data-warp-context-menu-entry-value]') ?? context.entry).innerText.trim(), state) })
-        const pageOwner = context.pageComponent ?? context.component
-        const pageItems = await pageOwner.$call('__warpContextMenu', [], 'page').catch(() => [])
-        const owned = items => items.map(item => ({ ...item, owner: pageOwner, ...(item.items ? { items: owned(item.items) } : {}) }))
-        items.push({ type: 'separator' }, ...owned(pageItems))
+        const [payload, pageItems] = await Promise.all([fetchSurface(context), fetchSurface(context, 'page')])
+        items = entryItems(context, payload, pageItems, state)
     } else {
-        items = await context.component.$call('__warpContextMenu', [], kind).catch(() => [])
+        items = kind === 'page' ? await fetchSurface(context) ?? [] : await context.component.$call('__warpContextMenu', [], kind).catch(() => [])
     }
-    if (kind === 'page' || kind === 'entry') {
-        const messages = context.config.messages
-        const selectedText = window.getSelection()?.toString().trim()
-        copies.push({ type: 'item', label: messages.copy_page_link, run: () => copy(location.href, state) },
-            { type: 'item', label: messages.reload_page, run: () => location.reload() },
-            { type: 'item', label: messages.back, run: () => history.back() },
-            { type: 'item', label: messages.forward, run: () => history.forward() })
-        if (selectedText) copies.push({ type: 'item', label: messages.copy_selection, run: () => copy(selectedText, state) })
-    }
+    if (kind === 'page' || kind === 'entry') copies.push(...pageCopies(context, state))
     if (active !== state) return
     menu.replaceChildren()
     items = normalize(items)
@@ -453,7 +507,6 @@ async function open(context, anchor, keyboard = false) {
         copies.push({ type: 'submenu', clipboardMenu: true, label: context.config.messages.clipboard, items: clipboardItems(state) })
     }
     items = normalize([...items, ...(copies.length ? [{ type: 'separator' }, ...copies] : []), ...(links.length ? [{ type: 'separator' }, ...links] : [])])
-    if (!items.length) { close(true); return }
     state.items = items
     state.anchor = anchor
     draw(state)
@@ -491,10 +544,14 @@ function bootstrap(marker) {
     })
     document.addEventListener('pointerover', event => {
         const context = targetFor(event.target) ?? targetFor(event.target.closest?.('.fi-ta')?.querySelector('[wire\\:key*=".table.records."]'))
-        if (!context?.table) return
-        if (!context.row) return
-        lastRow = context.row
-        fetchRows(context)
+        if (!context) return
+        if (context.row) {
+            lastRow = context.row
+            fetchRows(context)
+        } else {
+            fetchSurface(context)
+            if (context.config.kind === 'entry') fetchSurface(context, 'page')
+        }
     }, { passive: true })
     document.addEventListener('keydown', event => {
         if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key.toLowerCase() === 'v' && clipboard.inputTarget(event.target)) {
@@ -543,9 +600,9 @@ function bootstrap(marker) {
         if (active && shouldCloseOnScroll({ sheet: active.sheet, insideMenu: active.menu.contains(event.target), start: active.scroll.get(event.target), current: scrollPosition(event.target) })) close()
     }, true)
     window.addEventListener('resize', () => close())
-    document.addEventListener('livewire:navigated', () => { close(); cancelTouch(); cache = new WeakMap(); settledRows = new WeakMap(); lastRow = null })
+    document.addEventListener('livewire:navigated', () => { close(); cancelTouch(); cache = new WeakMap(); settledRows = new WeakMap(); surfaceCache = new WeakMap(); lastRow = null })
     window.Livewire.hook('morph.removed', ({ el }) => { if (active?.context.row && el.contains(active.context.row)) close() })
-    window.Livewire.hook('morph.updating', ({ component }) => { cache.delete(component.el); settledRows.delete(component.el) })
+    window.Livewire.hook('morph.updating', ({ component }) => { cache.delete(component.el); settledRows.delete(component.el); surfaceCache.delete(component.el) })
 }
 
 export default function warpContextMenu() {
