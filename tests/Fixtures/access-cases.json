@@ -1,0 +1,13 @@
+[
+    {"who": "blocked@example.com", "action": "delete", "guard": "policy", "payload": false, "label": "Delete"},
+    {"who": "manager@example.com", "action": "hiddenForRow", "guard": "visible", "payload": false, "label": "Hidden for row"},
+    {"who": "manager@example.com", "action": "disabledForRow", "guard": "disabled", "payload": true, "label": "Disabled for row"},
+    {"who": "manager@example.com", "action": "deniedBulk", "guard": "bulk", "payload": false, "label": "Denied bulk"},
+    {"who": "blocked@example.com", "action": "copySecret", "guard": "copyPolicy", "payload": false, "label": "Copy secret"},
+    {"who": "manager@example.com", "action": "copyHidden", "guard": "copyHidden", "payload": false, "label": "Copy hidden"},
+    {"who": "manager@example.com", "action": "rename", "scope": "team", "payload": false, "result": "foreign record stays unchanged"},
+    {"who": "manager@example.com", "action": "rename", "scope": "uuid", "payload": false, "result": "foreign UUID record stays unchanged"},
+    {"who": "manager@example.com", "action": "copySecretRecord", "guard": "copyPolicy", "recordSecret": true, "payload": false, "label": "Copy private record"},
+    {"who": "manager@example.com", "action": "nativeHeader", "pagesEnabled": true, "expected": ["nativeHeader"]},
+    {"who": "manager@example.com", "action": "nativeHeader", "pagesEnabled": false, "expected": []}
+]

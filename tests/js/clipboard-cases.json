@@ -1,0 +1,11 @@
+[
+    {"name": "ignore whitespace", "items": [], "op": "add", "entry": {"value": "  "}, "expected": []},
+    {"name": "deduplicate preserves pin", "items": [{"value": "a", "kept": true}, {"value": "b"}], "op": "add", "entry": {"value": "a"}, "expected": [{"value": "a", "kept": true}, {"value": "b"}]},
+    {"name": "pin excluded from limit", "items": [{"value": "pin", "kept": true}, {"value": "old"}], "op": "add", "entry": {"value": "new"}, "limit": 1, "expected": [{"value": "pin", "kept": true}, {"value": "new", "kept": false}]},
+    {"name": "unpin applies limit", "items": [{"value": "a", "kept": true}, {"value": "b"}], "op": "keep", "value": "a", "kept": false, "limit": 1, "expected": [{"value": "a", "kept": false}]},
+    {"name": "edit kept text and name", "items": [{"value": "a", "kept": true}], "op": "edit", "value": "a", "entry": {"value": "b", "name": "Bank"}, "expected": [{"value": "b", "name": "Bank", "kept": true}]},
+    {"name": "remove one", "items": [{"value": "a"}, {"value": "b"}], "op": "remove", "value": "a", "expected": [{"value": "b"}]},
+    {"name": "clear keeps pins", "items": [{"value": "a", "kept": true}, {"value": "b"}], "op": "clear", "expected": [{"value": "a", "kept": true}]},
+    {"name": "different identity", "items": [{"value": "a"}], "op": "switchUser", "previous": "A", "next": "B", "expected": []},
+    {"name": "same identity", "items": [{"value": "a"}], "op": "switchUser", "previous": "A", "next": "A", "expected": [{"value": "a"}]}
+]

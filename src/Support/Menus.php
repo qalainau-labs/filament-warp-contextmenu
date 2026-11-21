@@ -11,6 +11,7 @@ use Filament\Support\Facades\FilamentAsset;
 use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\View\ComponentAttributeBag;
 use Livewire\Component;
 use LogicException;
@@ -205,14 +206,22 @@ final class Menus
 
                 continue;
             }
+            if (Macros::get($action, 'copy') !== null && $record instanceof Model) {
+                $policy = Gate::getPolicyFor($record);
+                if ($policy && method_exists($policy, 'view') && ! Gate::allows('view', $record)) {
+                    continue;
+                }
+            }
             $items[] = [
                 'type' => 'item', 'name' => $action->getName(), 'label' => self::text($action->getLabel()),
-                'icon' => self::icon($action->getIcon()), 'color' => $action->getColor(),
+                'icon' => self::icon($action->getGroupedIcon() ?? $action->getIcon()), 'color' => $action->getColor(),
                 'disabled' => $action->isDisabled(), 'tooltip' => self::text($action->getTooltip()),
                 'badge' => self::text($action->getBadge()), 'shortcut' => $action->getKeyBindings(),
                 'checked' => (bool) $action->evaluate(Macros::get($action, 'checked', false)),
                 'checkable' => Macros::get($action, 'checked') !== null,
                 'url' => $action->getUrl(), 'newTab' => $action->shouldOpenUrlInNewTab(),
+                'keywords' => $action->evaluate(Macros::get($action, 'keywords', [])),
+                'copyValue' => Macros::get($action, 'copy') !== null ? (string) $action->evaluate(Macros::get($action, 'copy')) : null,
                 'context' => $action->getContext(), 'arguments' => $action->getArguments(),
             ];
         }
@@ -238,7 +247,7 @@ final class Menus
 
     private static function text(mixed $value): ?string
     {
-        return $value === null ? null : trim(strip_tags((string) $value));
+        return $value === null ? null : trim((string) $value);
     }
 
     private static function icon(mixed $icon): ?string
@@ -248,7 +257,13 @@ final class Menus
 
     public static function clientConfig(string $kind, ?Table $table = null): array
     {
+        $panel = Filament::getCurrentPanel();
+        $plugin = $panel?->hasPlugin('warp-contextmenu') ? $panel->getPlugin('warp-contextmenu') : null;
+        $clipboard = $plugin instanceof WarpContextMenuPlugin ? $plugin->getClipboardConfig() : ['enabled' => false];
+        $clipboard['key'] = 'warp-contextmenu:'.hash('sha256', json_encode([$panel?->getId(), Filament::auth()->id()]));
+
         return [
+            'clipboard' => $clipboard,
             'kind' => $kind,
             'copyCell' => $table ? Macros::get($table, 'copyCell', true) : false,
             'links' => $table ? Macros::get($table, 'links', true) : false,

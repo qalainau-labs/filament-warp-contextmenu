@@ -11,6 +11,6 @@ class MenuPage extends Page
 
     public function getContextMenuActions(): array
     {
-        return [Action::make('pageAction')->label('Page action')->requiresConfirmation()->action(fn () => Customer::query()->update(['name' => 'Page confirmed']))];
+        return [Action::make('hiddenHeader')->hidden(), Action::make('pageAction')->label('Page action')->requiresConfirmation()->action(fn () => Customer::query()->update(['name' => 'Page confirmed']))];
     }
 }

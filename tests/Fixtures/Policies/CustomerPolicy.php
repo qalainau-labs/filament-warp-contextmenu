@@ -20,6 +20,11 @@ class CustomerPolicy
         return $user->email !== 'blocked@example.com' && ! $customer->secret;
     }
 
+    public function delete(User $user, Customer $customer): bool
+    {
+        return $user->email !== 'blocked@example.com' && ! $customer->secret;
+    }
+
     public function update(User $user, Customer $customer): bool
     {
         return $this->view($user, $customer);

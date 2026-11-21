@@ -66,6 +66,18 @@ final class Macros
 
             return $self;
         });
+        Action::macro('contextMenuKeywords', function (array|Closure $keywords): Action {
+            $self = $this; // @phpstan-ignore variable.undefined
+            Macros::set($self, 'keywords', $keywords);
+
+            return $self;
+        });
+        Action::macro('contextMenuCopy', function (Closure $value): Action {
+            $self = $this; // @phpstan-ignore variable.undefined
+            Macros::set($self, 'copy', $value);
+
+            return $self;
+        });
         Action::macro('contextMenuChecked', function (bool|Closure $condition = true): Action {
             $self = $this; // @phpstan-ignore variable.undefined
             Macros::set($self, 'checked', $condition);

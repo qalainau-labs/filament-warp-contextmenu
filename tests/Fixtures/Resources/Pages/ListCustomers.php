@@ -12,6 +12,6 @@ class ListCustomers extends ListRecords
 
     protected function getHeaderActions(): array
     {
-        return [Action::make('nativeHeader')->label('Native header')->requiresConfirmation()->action(fn () => null)];
+        return [Action::make('hiddenHeader')->hidden(), Action::make('nativeHeader')->label('Native header')->requiresConfirmation()->action(fn () => null)];
     }
 }

@@ -9,6 +9,6 @@ function warpContextMenuConsumer(Table $table): array
     return [
         $table->contextMenu()->contextMenuBulkActions()->contextMenuCopyCell(false)->contextMenuLinks(false),
         TextColumn::make('email')->contextMenu([Action::make('mail')])->searchable(),
-        Action::make('status')->contextMenuChecked(true)->label('Status'),
+        Action::make('status')->contextMenuChecked(true)->contextMenuKeywords(['paid'])->contextMenuCopy(fn () => 'INV-1')->label('Status'),
     ];
 }

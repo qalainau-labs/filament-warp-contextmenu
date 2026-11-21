@@ -86,3 +86,15 @@ it('never renders an action label as HTML', async () => {
     expect(document.querySelector('[role=menu] img')).toBeNull()
     expect(document.querySelector('[role=menuitem]').textContent).toContain('<img')
 })
+
+it('returns focus to an action when clearing the search of a small menu', async () => {
+    rightClick()
+    await flush()
+    document.activeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'e', bubbles: true, cancelable: true }))
+    const input = document.querySelector('.fi-wcm-search')
+    expect(input).not.toBeNull()
+    input.value = ''
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+    expect(document.querySelector('.fi-wcm-search')).toBeNull()
+    expect(document.activeElement).toBe(document.querySelector('[role=menuitem]'))
+})
