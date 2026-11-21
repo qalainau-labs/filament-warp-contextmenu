@@ -88,7 +88,7 @@ it('keeps the placeholders and the singular|plural pairs in every language', fun
         $found = array_unique($matches[0]);
         sort($found);
 
-        return [...$found, 'forms' => str_contains($file, '/ja/') ? false : substr_count($line, '|') > 0];
+        return [...$found, 'forms' => preg_match('#/(ja|ko|zh_CN|zh_TW)/#', $file) ? false : substr_count($line, '|') > 0];
     };
 
     foreach ($source as $key => $line) {
