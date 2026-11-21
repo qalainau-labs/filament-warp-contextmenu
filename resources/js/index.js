@@ -1,3 +1,4 @@
+import { surface, hideColumn } from './core/surfaces.js'
 import { search, shouldShowSearch } from './core/search.js'
 import { shouldCloseOnScroll } from './core/scroll.js'
 import { safeUrl } from './core/url.js'
@@ -25,16 +26,23 @@ function targetFor(target) {
     if (!(target instanceof Element)) return null
     const row = target.closest('[wire\\:key*=".table.records."]')
     const key = row?.getAttribute('wire:key')?.match(/\.table\.records\.(.+)$/)?.[1]
-    const table = key ? row.closest('.fi-ta') : null
-    const marker = table?.querySelector('[data-warp-context-menu-config]')
-    const pageMarker = target.closest('[wire\\:id]')?.querySelector('[data-warp-context-menu-kind="page"]')
-    const selected = marker ?? (!target.closest('.fi-ta') && pageMarker?.dataset.warpContextMenuConfig && JSON.parse(pageMarker.dataset.warpContextMenuConfig).kind === 'page' ? pageMarker : null)
-    if (!selected) return null
-    const componentEl = selected.closest('[wire\\:id]')
-    const component = window.Livewire?.find(componentEl.getAttribute('wire:id'))
+    const table = target.closest('.fi-ta')
+    const marker = table?.querySelector('[data-warp-context-menu-kind="record"]') ?? table?.querySelector('[data-warp-context-menu-config]')
+    // Page chrome can live outside the page's Livewire root (sidebar/topbar).
+    const pageMarker = target.closest('[wire\\:id]')?.querySelector('[data-warp-context-menu-kind="page"]') ?? document.querySelector('[data-warp-context-menu-kind="page"]')
+    const entry = target.closest('[data-warp-context-menu-entry]')
+    const header = target.closest('[data-warp-context-menu-header]')
+    const tableConfig = marker ? JSON.parse(marker.dataset.warpContextMenuConfig) : null
+    const kind = surface({ table: !!table, record: !!key, header: !!target.closest('th'), entry: !!entry, pages: !!pageMarker, enabled: !!marker, headers: tableConfig?.headers, tableMenu: tableConfig?.tableMenu })
+    const selected = table ? marker : pageMarker
+    if (!selected || !kind) return null
+    const pageComponentEl = pageMarker?.closest('[wire\\:id]')
+    const componentEl = (kind === 'entry' ? entry.closest('[wire\\:id]') : null) ?? selected.closest('[wire\\:id]')
+    const component = window.Livewire?.find(componentEl?.getAttribute('wire:id'))
     if (!component) return null
-    const config = JSON.parse(selected.dataset.warpContextMenuConfig)
-    return { row: key ? row : null, key, table, config, component, componentEl, target }
+    const config = { ...JSON.parse(selected.dataset.warpContextMenuConfig), kind }
+    return { row: key ? row : null, key, table, entry, column: header?.dataset.warpContextMenuHeader, config, component, pageComponent: pageComponentEl ? window.Livewire?.find(pageComponentEl.getAttribute('wire:id')) : null, componentEl, target }
+
 }
 
 const scrollPosition = target => target === document
@@ -51,6 +59,7 @@ function nativeMenu(event) {
     if (event.shiftKey || event.target.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"])')) return true
     const selection = window.getSelection()
     if (!selection || selection.isCollapsed || !selection.rangeCount) return false
+    if (['page', 'entry'].includes(targetFor(event.target)?.config.kind)) return false
     return [...selection.getRangeAt(0).getClientRects()].some(rect => event.clientX >= rect.left && event.clientX <= rect.right && event.clientY >= rect.top && event.clientY <= rect.bottom)
 }
 
@@ -133,7 +142,7 @@ function activate(item, state) {
     } else if (state.kind === 'bulk') {
         window.Alpine.$data(state.context.table).mountAction(item.name, item.arguments ?? {}, { ...item.context, table: true, bulk: true })
     } else {
-        state.context.component.$call('mountAction', item.name, item.arguments ?? {}, state.kind === 'page' ? item.context ?? {} : { ...item.context, table: true, recordKey: state.context.key })
+        ;(item.owner ?? state.context.component).$call('mountAction', item.name, item.arguments ?? {}, ['page', 'entry'].includes(state.kind) ? item.context ?? {} : state.kind === 'table' ? { ...item.context, table: true } : { ...item.context, table: true, recordKey: state.context.key })
     }
     close(true)
 }
@@ -355,10 +364,42 @@ function openPaste(target, anchor, allowEmpty = false) {
     return true
 }
 
+function tableItems(context, payload, state, scope) {
+    if (!payload || Array.isArray(payload)) return []
+    const messages = context.config.messages
+    const action = (key, run, extra = {}) => ({ type: 'item', label: messages[key], run, ...extra })
+    const cells = name => [...context.table.querySelectorAll('[data-warp-context-menu-column]')]
+        .filter(cell => cell.dataset.warpContextMenuColumn === name && cell.getClientRects().length)
+    const call = (method, ...args) => context.component.$call(method, ...args)
+    if (context.config.kind === 'column') {
+        const column = payload.columns?.[context.column]
+        if (!column) return []
+        const items = []
+        if (column.sortable) {
+            for (const direction of ['asc', 'desc']) items.push(action(`sort_${direction}`, () => call('sortTable', context.column, direction), { checkable: true, checked: payload.sortColumn === context.column && payload.sortDirection === direction }))
+            items.push(action('sort_clear', () => call('sortTable', null, '')))
+        }
+        if (column.toggleable) items.push(action('hide_column', () => call('applyTableColumnManager', hideColumn(context.component.$get('tableColumns'), context.column))))
+        items.push(action('copy_column', () => copy(cells(context.column).map(cell => cell.innerText.trim()).join('\n'), state)))
+        return items
+    }
+    const items = [...(payload.items ?? []), { type: 'separator' }]
+    if (payload.selectable) items.push(action('select_page', () => scope.selectRecords(scope.getRecordsOnPage())), action('deselect_all', () => scope.deselectAllRecords()))
+    if (payload.filters) items.push(action('reset_filters', () => call('resetTableFiltersForm')))
+    items.push(action('reload_table', () => call('$refresh')), action('copy_table', () => {
+        const headers = [...context.table.querySelectorAll('[data-warp-context-menu-header]')].filter(header => header.getClientRects().length)
+        const columns = headers.map(header => cells(header.dataset.warpContextMenuHeader))
+        const lines = [headers.map(header => header.innerText.trim()).join('\t')]
+        for (let i = 0; i < Math.max(0, ...columns.map(column => column.length)); i++) lines.push(columns.map(column => column[i]?.innerText.trim() ?? '').join('\t'))
+        copy(lines.join('\n'), state)
+    }))
+    return items
+}
+
 async function open(context, anchor, keyboard = false) {
     close()
     const scope = context.table ? window.Alpine.$data(context.table) : null
-    const bulk = context.config.bulk && scope?.getSelectedRecordsCount?.() >= 2 && scope.isRecordSelected(context.key)
+    const bulk = context.row && context.config.bulk && scope?.getSelectedRecordsCount?.() >= 2 && scope.isRecordSelected(context.key)
     const kind = bulk ? 'bulk' : context.config.kind
     const menu = el('div', 'fi-warp-contextmenu-menu')
     menu.setAttribute('role', 'menu'); menu.setAttribute('aria-label', context.config.messages[`label_${kind}`])
@@ -379,15 +420,35 @@ async function open(context, anchor, keyboard = false) {
         if (cell && context.config.copyCell) copies.push( { type: 'item', label: context.config.messages.copy_cell, run: () => copy(cell.innerText.trim(), state) })
         const link = context.target.closest('a[href]')
         if (link && context.config.links) links.push( { type: 'item', label: context.config.messages.open_link_new_tab, url: link.href, newTab: true }, { type: 'item', label: context.config.messages.copy_link, run: () => copy(link.href, state) })
+    } else if (kind === 'column' || kind === 'table') {
+        const payload = await context.component.$call('__warpContextMenu', [], kind).catch(() => null)
+        items = tableItems(context, payload, state, scope)
+    } else if (kind === 'entry') {
+        const payload = await context.component.$call('__warpContextMenu', [context.entry.dataset.warpContextMenuEntry], 'entry').catch(() => null)
+        items = [...(payload?.items ?? [])]
+        if (payload?.copyValue) items.push({ type: 'item', label: context.config.messages.copy_value, run: () => copy((context.entry.querySelector('[data-warp-context-menu-entry-value]') ?? context.entry).innerText.trim(), state) })
+        const pageOwner = context.pageComponent ?? context.component
+        const pageItems = await pageOwner.$call('__warpContextMenu', [], 'page').catch(() => [])
+        const owned = items => items.map(item => ({ ...item, owner: pageOwner, ...(item.items ? { items: owned(item.items) } : {}) }))
+        items.push({ type: 'separator' }, ...owned(pageItems))
     } else {
         items = await context.component.$call('__warpContextMenu', [], kind).catch(() => [])
+    }
+    if (kind === 'page' || kind === 'entry') {
+        const messages = context.config.messages
+        const selectedText = window.getSelection()?.toString().trim()
+        copies.push({ type: 'item', label: messages.copy_page_link, run: () => copy(location.href, state) },
+            { type: 'item', label: messages.reload_page, run: () => location.reload() },
+            { type: 'item', label: messages.back, run: () => history.back() },
+            { type: 'item', label: messages.forward, run: () => history.forward() })
+        if (selectedText) copies.push({ type: 'item', label: messages.copy_selection, run: () => copy(selectedText, state) })
     }
     if (active !== state) return
     menu.replaceChildren()
     items = normalize(items)
     state.showSearch = shouldShowSearch(items)
     if (bulk) state.heading = selectedLabel(context.config.selectedCount, scope.getSelectedRecordsCount(), context.config.locale)
-    if (context.config.clipboardMenu !== false && clipboard.clipboardSettings()) {
+    if (['record', 'bulk', 'page', 'entry'].includes(kind) && context.config.clipboardMenu !== false && clipboard.clipboardSettings()) {
         if (kind === 'record' && context.row) copies.push({ type: 'item', label: context.config.messages.copy_row, run: () => copy([...context.row.querySelectorAll('td')].filter(cell => cell.getClientRects().length && !cell.querySelector('input[type=checkbox]') && !cell.querySelector('.fi-ta-actions')).map(cell => cell.innerText.trim()).join('\t'), state) })
         copies.push({ type: 'submenu', clipboardMenu: true, label: context.config.messages.clipboard, items: clipboardItems(state) })
     }
@@ -431,6 +492,7 @@ function bootstrap(marker) {
     document.addEventListener('pointerover', event => {
         const context = targetFor(event.target) ?? targetFor(event.target.closest?.('.fi-ta')?.querySelector('[wire\\:key*=".table.records."]'))
         if (!context?.table) return
+        if (!context.row) return
         lastRow = context.row
         fetchRows(context)
     }, { passive: true })
@@ -451,7 +513,7 @@ function bootstrap(marker) {
         if (event.key !== 'ContextMenu' && !(event.shiftKey && event.key === 'F10')) return
         if (event.target.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"])')) return
         const focused = targetFor(event.target)
-        const context = focused?.row ? focused : targetFor(lastRow) ?? focused
+        const context = focused ?? targetFor(lastRow)
         if (!context) return
         event.preventDefault()
         const r = (context.row ?? event.target).getBoundingClientRect()

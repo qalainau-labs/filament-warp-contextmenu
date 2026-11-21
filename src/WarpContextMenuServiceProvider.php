@@ -74,9 +74,22 @@ class WarpContextMenuServiceProvider extends PackageServiceProvider
                 })->call($component, $mounted);
             }
         });
+        Livewire::listen('update', function (Component $component): void {
+            Macros::set($component, 'nativeCall', true);
+        });
         Livewire::listen('call', function (Component $component, $method, $params, $context, $returnEarly): void {
+            if ($method !== '__warpContextMenu') {
+                Macros::set($component, 'nativeCall', true);
+                if (Macros::get($component, 'skippedMenuRender', false)) {
+                    \Livewire\store($component)->unset('skipRender');
+                    Macros::set($component, 'skippedMenuRender', false);
+                }
+            }
             if ($method === '__warpContextMenu') {
-                $component->skipRender();
+                if (! Macros::get($component, 'nativeCall', false)) {
+                    $component->skipRender();
+                    Macros::set($component, 'skippedMenuRender', true);
+                }
                 if (request()->attributes->get('warpContextMenuFetched', false)) {
                     $returnEarly([]);
 

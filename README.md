@@ -30,7 +30,7 @@ Right-click a Filament table row, cell, selection or page to use native Filament
 - **Keep your existing actions.** One `->contextMenu()` reuses `recordActions()`. Forms, confirmation dialogs, notifications and redirects still belong to Filament.
 - **Submenus and sections.** Use ordinary `ActionGroup` objects, or an explicit separator.
 - **Bulk actions.** Right-click selected rows to use the toolbar's bulk actions, including Filament's all-pages selection.
-- **Cell and page menus.** Add actions to any table column; optionally reuse a page's header actions without a trait.
+- **Cell and page menus.** Add actions to any table column; reuse a page's header actions and navigation across page chrome without a trait.
 - **Links and copying.** Copy cell text, a row as tab-separated columns, a link address, or a value provided by an action. Open underlying links in a new tab.
 - **Search.** Type to filter, including actions inside submenus, with paths in the results and optional extra keywords.
 - **Clipboard history and kept text.** Collect copies in the panel, save reusable templates and paste into form fields.
@@ -183,29 +183,48 @@ TextColumn::make('customer.email')
 
 `Column::contextMenu(array|Closure $actions)` works on ordinary Filament table columns. Cell actions are placed before the row actions and receive the row's record. Hidden and toggled-off columns do not contribute cell menus.
 
+### Column headers and table space
+
+Configured tables enable two additional menus by default. Right-click a column header to sort ascending or descending, clear sorting, hide a toggleable column, or copy that column’s visible values with newlines. Sorting shows the current direction. Hidden columns never enter the capability payload.
+
+Right-click table space, the toolbar or pagination to use `headerActions()`, select this page’s selectable rows, deselect all, reset filters, reload the table or copy visible columns and rows as TSV with a header row. Selection commands appear only on selectable tables; filter reset appears only when filters exist. These commands use Filament’s native sorting, column manager, selection and filter APIs.
+
+```php
+$table->contextMenu()->contextMenuHeaders(false); // Disable column-header menus.
+$table->contextMenu()->contextMenuTable(false);   // Disable table-space menus.
+```
+
+The two boolean settings default to true. Table surfaces never fall back to the page menu, including when opted out.
+
 ### Page actions
 
-```php
-use Qalainau\FilamentWarpContextMenu\WarpContextMenuPlugin;
+Registering `WarpContextMenuPlugin::make()` enables page menus by default, everywhere outside tables: headers, form labels, infolists, widgets, sidebars, topbars and empty space. Disable with `WarpContextMenuPlugin::make()->pages(false)`.
 
-$panel->plugin(WarpContextMenuPlugin::make()->pages());
-```
+Menus include the page’s visible, authorized header actions, Copy link to this page, Reload page, Back, Forward, Copy selected text when text is selected, and the Clipboard submenu when `clipboard()` is enabled. Back uses the same translated label as a sheet’s submenu navigation. Inputs keep their native menu or the clipboard paste picker.
 
-`pages(bool $condition = true)` enables right-clicking the space outside tables to reuse the page's header actions. For a separate menu, define this method on the page (no trait):
+For a separate action list, define this method on the page (no trait):
 
 ```php
-use Filament\Actions\Action;
-
 public function getContextMenuActions(): array
 {
-    return [
-        Action::make('help')
-            ->label('Help')
-            ->url('https://example.com/help')
-            ->openUrlInNewTab(),
-    ];
+    return [Action::make('help')->url('https://example.com/help')];
 }
 ```
+
+### Infolist entries
+
+Entries offer Copy value by default, followed by page commands. Add native entry actions with `Entry::contextMenu(array|Closure)` or disable copying for one entry:
+
+```php
+use Filament\Infolists\Components\TextEntry;
+
+TextEntry::make('email')->contextMenu([
+    Action::make('emailCustomer')->url(fn ($record) => 'mailto:'.$record->email),
+]);
+TextEntry::make('private_note')->contextMenuCopyValue(false);
+```
+
+Entry actions use Filament’s schema action context and normal visibility and authorization checks. Hidden entries and entries inside hidden parents return no menu payload. `pages(false)` also disables entry menus.
 
 ### Links and copying
 
@@ -237,7 +256,7 @@ Start typing in an open menu to search. Menus containing at least eight leaf act
 
 ### Browser menu and empty menus
 
-Shift + right-click always leaves the browser's menu available. Input, textarea, select and editable content keep their native menus, as does a right-click inside selected text. Clipboard-enabled text inputs are the exception described below. A row with no available actions or enabled conveniences falls back to the browser menu once its empty payload is known. On the first asynchronous lookup an empty result dismisses the loading menu; use Shift + right-click to explicitly open the browser menu.
+Shift + right-click always leaves the browser's menu available. Input, textarea, select and editable content keep their native menus. Selected text keeps its native menu on tables; page menus offer Copy selected text. Clipboard-enabled text inputs are the exception described below. A row with no available actions or enabled conveniences falls back to the browser menu once its empty payload is known. On the first asynchronous lookup an empty result dismisses the loading menu; use Shift + right-click to explicitly open the browser menu.
 
 Menus for up to **100 record keys** are prefetched in one request when the pointer enters the table. Further keys are truncated on the server. A Livewire update invalidates the cached menus. Hidden and unauthorized actions, including their names and labels, are omitted from the payload.
 

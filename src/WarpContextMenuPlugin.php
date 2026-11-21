@@ -9,7 +9,7 @@ use Filament\View\PanelsRenderHook;
 
 class WarpContextMenuPlugin implements Plugin
 {
-    protected bool $hasPages = false;
+    protected bool $hasPages = true;
 
     protected array $clipboardConfig = ['enabled' => false, 'limit' => 10, 'persist' => true];
 

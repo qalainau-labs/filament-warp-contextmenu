@@ -1,6 +1,25 @@
 <?php
 
 return [
+    'sort_asc' => '升冪排序',
+    'sort_desc' => '降冪排序',
+    'sort_clear' => '清除排序',
+    'hide_column' => '隱藏此欄',
+    'copy_column' => '複製此欄',
+    'select_page' => '選取本頁所有列',
+    'deselect_all' => '取消全部選取',
+    'reset_filters' => '重設篩選',
+    'reload_table' => '重新載入表格',
+    'copy_table' => '複製表格',
+    'copy_page_link' => '複製此頁面連結',
+    'reload_page' => '重新載入頁面',
+    'forward' => '向前',
+    'copy_selection' => '複製所選文字',
+    'copy_value' => '複製值',
+    'label_table' => '此表格的操作',
+    'label_column' => '此欄的操作',
+    'label_entry' => '此值的操作',
+
     'copy_cell' => '複製儲存格文字',
     'copied' => '已複製',
     'copy_failed' => '無法複製，瀏覽器封鎖了複製操作。',

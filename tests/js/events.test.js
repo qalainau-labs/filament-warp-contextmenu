@@ -245,3 +245,27 @@ it('labels manually added clipboard text in the current locale and preserves cop
     expect(submenu.textContent).toContain('Invoice · Name')
     localStorage.removeItem(config.clipboard.key)
 })
+
+it('keeps nested widget entry actions on the widget and page header actions on the page', async () => {
+    const pageMarker = document.createElement('div')
+    pageMarker.dataset.warpContextMenuKind = 'page'
+    pageMarker.dataset.warpContextMenuConfig = JSON.stringify({ kind: 'page', messages: { ...messages, copy_value: 'Copy value' }, css: 'data:text/css,' })
+    table.parentElement.append(pageMarker)
+    const widget = document.createElement('div')
+    widget.setAttribute('wire:id', 'widget')
+    widget.innerHTML = '<div data-warp-context-menu-entry="infolist.name"><span data-warp-context-menu-entry-value>Widget value</span></div>'
+    table.parentElement.append(widget)
+    target = widget.querySelector('span')
+    const widgetComponent = { $call: vi.fn(async () => ({ items: [{ type: 'item', name: 'entryAction', label: 'Entry action', context: { schemaComponent: 'infolist.name' } }], copyValue: true })) }
+    component.$call.mockImplementation(async (method, keys, kind) => kind === 'page' ? [{ type: 'item', name: 'pageAction', label: 'Page action' }] : [])
+    window.Livewire.find = id => id === 'widget' ? widgetComponent : component
+    rightClick(); await flush()
+    expect(document.querySelector('[role=menu]').textContent).toContain('Copy value')
+    expect(widgetComponent.$call).toHaveBeenCalledWith('__warpContextMenu', ['infolist.name'], 'entry')
+    const buttons = () => [...document.querySelectorAll('[role=menuitem]')]
+    buttons().find(button => button.getAttribute('aria-label') === 'Page action').click()
+    expect(component.$call).toHaveBeenLastCalledWith('mountAction', 'pageAction', {}, {})
+    rightClick(); await flush()
+    buttons().find(button => button.getAttribute('aria-label') === 'Entry action').click()
+    expect(widgetComponent.$call).toHaveBeenLastCalledWith('mountAction', 'entryAction', {}, { schemaComponent: 'infolist.name' })
+})

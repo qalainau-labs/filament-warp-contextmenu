@@ -1,6 +1,25 @@
 <?php
 
 return [
+    'sort_asc' => '昇順で並べる',
+    'sort_desc' => '降順で並べる',
+    'sort_clear' => '並べ替えを外す',
+    'hide_column' => 'この列を隠す',
+    'copy_column' => 'この列の値をコピー',
+    'select_page' => 'このページの行を全部選ぶ',
+    'deselect_all' => '選択を外す',
+    'reset_filters' => '絞り込みを外す',
+    'reload_table' => '表を読み直す',
+    'copy_table' => '表をコピー',
+    'copy_page_link' => 'このページのリンクをコピー',
+    'reload_page' => 'ページを読み直す',
+    'forward' => '進む',
+    'copy_selection' => '選んだ文字をコピー',
+    'copy_value' => '値をコピー',
+    'label_table' => 'この表の操作',
+    'label_column' => 'この列の操作',
+    'label_entry' => 'この項目の操作',
+
     'copy_cell' => 'セルの文字をコピー',
     'copied' => 'コピーしました',
     'copy_failed' => 'コピーできませんでした（ブラウザが止めました）',

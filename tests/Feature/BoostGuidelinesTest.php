@@ -55,7 +55,7 @@ it('only uses methods that exist', function (): void {
         // Filament の欄・リソース・リレーション、文章の中の http(s)
         'relationship', 'options', 'canView', 'count', 'http'];
 
-    $macros = [Column::class, Table::class, Action::class];
+    $macros = [Column::class, Table::class, Action::class, Entry::class];
 
     $missing = collect([...$chained[1], ...$inline[1]])
         ->unique()

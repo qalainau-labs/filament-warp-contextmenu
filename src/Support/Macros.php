@@ -4,6 +4,7 @@ namespace Qalainau\FilamentWarpContextMenu\Support;
 
 use Closure;
 use Filament\Actions\Action;
+use Filament\Infolists\Components\Entry;
 use Filament\Tables\Columns\Column;
 use Filament\Tables\Table;
 use WeakMap;
@@ -27,6 +28,14 @@ final class Macros
 
     public static function register(): void
     {
+        Column::configureUsing(function (Column $column): void {
+            $column->extraHeaderAttributes(fn () => ['data-warp-context-menu-header' => $column->getName()], merge: true);
+            $column->extraAttributes(fn () => ['data-warp-context-menu-column' => $column->getName()], merge: true);
+        });
+        Entry::configureUsing(function (Entry $entry): void {
+            $entry->extraEntryWrapperAttributes(fn () => ['data-warp-context-menu-entry' => $entry->getKey()], merge: true);
+            $entry->extraAttributes(['data-warp-context-menu-entry-value' => ''], merge: true);
+        });
         Table::macro('contextMenu', function (array|Closure|null $actions = null): Table {
             $self = $this; // @phpstan-ignore variable.undefined
             Macros::set($self, 'enabled', true);
@@ -63,6 +72,33 @@ final class Macros
             $self = $this; // @phpstan-ignore variable.undefined
             Macros::set($self, 'enabled', true);
             Macros::set($self, 'links', $condition);
+
+            return $self;
+        });
+        Table::macro('contextMenuHeaders', function (bool $condition = true): Table {
+            $self = $this; // @phpstan-ignore variable.undefined
+            Macros::set($self, 'enabled', true);
+            Macros::set($self, 'headers', $condition);
+
+            return $self;
+        });
+        Table::macro('contextMenuTable', function (bool $condition = true): Table {
+            $self = $this; // @phpstan-ignore variable.undefined
+            Macros::set($self, 'enabled', true);
+            Macros::set($self, 'table', $condition);
+
+            return $self;
+        });
+        Entry::macro('contextMenu', function (array|Closure $actions): Entry {
+            $self = $this; // @phpstan-ignore variable.undefined
+            Macros::set($self, 'actions', $actions);
+            $self->registerActions([fn (): array => Surfaces::entryActions($self)]);
+
+            return $self;
+        });
+        Entry::macro('contextMenuCopyValue', function (bool $condition = true): Entry {
+            $self = $this; // @phpstan-ignore variable.undefined
+            Macros::set($self, 'copyValue', $condition);
 
             return $self;
         });

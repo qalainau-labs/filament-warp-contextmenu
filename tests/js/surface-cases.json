@@ -1,0 +1,12 @@
+[
+  {"name":"record wins over header and page", "input":{"table":true,"enabled":true,"record":true,"header":true,"pages":true},"expected":"record"},
+  {"name":"column header", "input":{"table":true,"enabled":true,"header":true,"pages":true},"expected":"column"},
+  {"name":"table toolbar", "input":{"table":true,"enabled":true,"pages":true},"expected":"table"},
+  {"name":"disabled table blocks page fallback", "input":{"table":true,"enabled":false,"pages":true},"expected":null},
+  {"name":"disabled headers block table fallback", "input":{"table":true,"enabled":true,"header":true,"headers":false,"pages":true},"expected":null},
+  {"name":"disabled table surface", "input":{"table":true,"enabled":true,"tableMenu":false,"pages":true},"expected":null},
+  {"name":"entry before page", "input":{"entry":true,"pages":true},"expected":"entry"},
+  {"name":"sidebar page", "input":{"pages":true},"expected":"page"},
+  {"name":"pages off includes entry", "input":{"entry":true,"pages":false},"expected":null},
+  {"name":"unconfigured region", "input":{},"expected":null}
+]

@@ -17,7 +17,7 @@ use Qalainau\FilamentWarpContextMenu\WarpContextMenuPlugin;
 $panel->plugin(WarpContextMenuPlugin::make());
 ```
 
-Opt in to page header actions with `pages()` and clipboard capture with `clipboard()`. Both default off.
+Page menus are on by default; disable with `pages(false)`. Clipboard capture remains opt-in with `clipboard()`.
 
 ## Where to read more
 
@@ -116,7 +116,7 @@ Storage is localStorage by default or sessionStorage with `persist: false`, per 
 
 ## Boundaries and tests
 
-Record keys are looked up through the table query again and requests are limited to 100 keys. Tenant scoping and policies belong on the resource; Filament verifies action mounting. Native menus remain accessible with Shift + right-click, in editable fields unless a clipboard picker applies, and inside selected text. A known empty menu preserves the browser menu; an initially empty async response dismisses the loading menu.
+Record keys are looked up through the table query again and requests are limited to 100 keys. Tenant scoping and policies belong on the resource; Filament verifies action mounting. Native menus remain accessible with Shift + right-click, in editable fields unless a clipboard picker applies, and inside selected text on tables. Page menus offer Copy selected text. A known empty menu preserves the browser menu; an initially empty async response dismisses the loading menu.
 
 ```php
 use Filament\Facades\Filament;
@@ -132,3 +132,9 @@ Livewire::test(ListInvoices::class)
 ```
 
 Row payloads contain `items` and `cells` keyed by column name. Bulk and page calls pass `[]` and the corresponding kind. For tenancy tests, set `Filament::setTenant($team, isQuiet: true)` first and verify another tenant's key returns empty `items` and `cells`. Test action effects through normal Filament action tests too. See "Testing" for a complete application example.
+
+## Table surfaces and infolists
+
+Configured tables include column-header menus (sorting, hide column, copy column) and table-space/toolbar/pagination menus (header actions, select page, deselect, reset filters, reload, copy table). Disable with `Table::contextMenuHeaders(false)` or `Table::contextMenuTable(false)`. The commands use Filament’s own APIs and visible DOM values for copying.
+
+Page menus include page actions, page-link copy, reload, Back, Forward, selected-text copy and optional Clipboard. Inputs retain the browser menu or clipboard picker. `Entry::contextMenu(array|Closure)` adds native infolist actions before page commands; Copy value defaults on and `Entry::contextMenuCopyValue(false)` disables it. Hidden entries and actions are excluded. See "Column headers and table space" and "Infolist entries" in the README.

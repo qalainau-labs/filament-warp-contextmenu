@@ -1,6 +1,25 @@
 <?php
 
 return [
+    'sort_asc' => '오름차순 정렬',
+    'sort_desc' => '내림차순 정렬',
+    'sort_clear' => '정렬 해제',
+    'hide_column' => '열 숨기기',
+    'copy_column' => '열 복사',
+    'select_page' => '이 페이지 모두 선택',
+    'deselect_all' => '모두 선택 해제',
+    'reset_filters' => '필터 초기화',
+    'reload_table' => '표 새로고침',
+    'copy_table' => '표 복사',
+    'copy_page_link' => '이 페이지 링크 복사',
+    'reload_page' => '페이지 새로고침',
+    'forward' => '앞으로',
+    'copy_selection' => '선택한 텍스트 복사',
+    'copy_value' => '값 복사',
+    'label_table' => '이 표의 작업',
+    'label_column' => '이 열의 작업',
+    'label_entry' => '이 값의 작업',
+
     'copy_cell' => '셀 텍스트 복사',
     'copied' => '복사했습니다',
     'copy_failed' => '복사하지 못했습니다. 브라우저가 복사를 차단했습니다.',

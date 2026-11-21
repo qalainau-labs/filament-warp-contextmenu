@@ -1,6 +1,25 @@
 <?php
 
 return [
+    'sort_asc' => 'Ordina in modo crescente',
+    'sort_desc' => 'Ordina in modo decrescente',
+    'sort_clear' => 'Rimuovi l’ordinamento',
+    'hide_column' => 'Nascondi colonna',
+    'copy_column' => 'Copia colonna',
+    'select_page' => 'Seleziona tutto in questa pagina',
+    'deselect_all' => 'Deseleziona tutto',
+    'reset_filters' => 'Reimposta filtri',
+    'reload_table' => 'Ricarica tabella',
+    'copy_table' => 'Copia tabella',
+    'copy_page_link' => 'Copia link a questa pagina',
+    'reload_page' => 'Ricarica pagina',
+    'forward' => 'Avanti',
+    'copy_selection' => 'Copia testo selezionato',
+    'copy_value' => 'Copia valore',
+    'label_table' => 'Azioni per questa tabella',
+    'label_column' => 'Azioni per questa colonna',
+    'label_entry' => 'Azioni per questo valore',
+
     'copy_cell' => 'Copia testo della cella',
     'copied' => 'Copiato',
     'copy_failed' => 'Impossibile copiare. Il browser ha bloccato la copia.',

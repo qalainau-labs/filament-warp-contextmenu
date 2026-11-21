@@ -154,11 +154,17 @@ final class Menus
 
     public static function fetch(Component $component, array $keys = [], string $kind = 'record'): array
     {
+        if ($kind === 'entry') {
+            return Surfaces::entry($component, $keys[0] ?? null, self::pagesEnabled());
+        }
         if ($kind === 'page') {
             return self::serialize(self::pageActions($component));
         }
         if (! $component instanceof HasTable || ! self::enabled($table = $component->getTable())) {
             return [];
+        }
+        if ($kind === 'column' || $kind === 'table') {
+            return Surfaces::table($component, $table, $kind);
         }
         $prepared = self::prepare($table);
         if ($kind === 'bulk') {
@@ -177,9 +183,7 @@ final class Menus
             if (! $record) {
                 continue;
             }
-            $result[(string) $key]['title'] = $record instanceof Model && ($table->hasCustomRecordTitle() || filled($table->getRecordTitleAttribute()))
-                ? (self::text($table->getRecordTitle($record)) ?: null)
-                : null;
+            $result[(string) $key]['title'] = $record instanceof Model ? Surfaces::recordTitle($table, $record) : null;
             $result[(string) $key]['items'] = self::serialize($prepared['record'], $record);
             foreach ($prepared['cells'] as $column => $actions) {
                 $result[(string) $key]['cells'][$column] = self::serialize($actions, $record);
@@ -283,6 +287,8 @@ final class Menus
         return [
             'clipboard' => $clipboard,
             'clipboardMenu' => $table ? Macros::get($table, 'clipboard', true) : true,
+            'headers' => $table ? Macros::get($table, 'headers', true) : false,
+            'tableMenu' => $table ? Macros::get($table, 'table', true) : false,
             'kind' => $kind,
             'copyCell' => $table ? Macros::get($table, 'copyCell', true) : false,
             'links' => $table ? Macros::get($table, 'links', true) : false,

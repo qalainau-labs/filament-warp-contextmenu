@@ -1,6 +1,25 @@
 <?php
 
 return [
+    'sort_asc' => '升序排列',
+    'sort_desc' => '降序排列',
+    'sort_clear' => '清除排序',
+    'hide_column' => '隐藏此列',
+    'copy_column' => '复制此列',
+    'select_page' => '选择本页全部行',
+    'deselect_all' => '取消全部选择',
+    'reset_filters' => '重置筛选',
+    'reload_table' => '重新加载表格',
+    'copy_table' => '复制表格',
+    'copy_page_link' => '复制此页面链接',
+    'reload_page' => '重新加载页面',
+    'forward' => '前进',
+    'copy_selection' => '复制所选文本',
+    'copy_value' => '复制值',
+    'label_table' => '此表格的操作',
+    'label_column' => '此列的操作',
+    'label_entry' => '此值的操作',
+
     'copy_cell' => '复制单元格文本',
     'copied' => '已复制',
     'copy_failed' => '无法复制，浏览器阻止了复制操作。',

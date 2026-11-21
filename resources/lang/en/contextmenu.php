@@ -1,6 +1,25 @@
 <?php
 
 return [
+    'sort_asc' => 'Sort ascending',
+    'sort_desc' => 'Sort descending',
+    'sort_clear' => 'Clear sorting',
+    'hide_column' => 'Hide column',
+    'copy_column' => 'Copy column',
+    'select_page' => 'Select all on this page',
+    'deselect_all' => 'Deselect all',
+    'reset_filters' => 'Reset filters',
+    'reload_table' => 'Reload table',
+    'copy_table' => 'Copy table',
+    'copy_page_link' => 'Copy link to this page',
+    'reload_page' => 'Reload page',
+    'forward' => 'Forward',
+    'copy_selection' => 'Copy selected text',
+    'copy_value' => 'Copy value',
+    'label_table' => 'Actions for this table',
+    'label_column' => 'Actions for this column',
+    'label_entry' => 'Actions for this value',
+
     'copy_cell' => 'Copy cell text',
     'copied' => 'Copied',
     'copy_failed' => 'Couldn\'t copy. Your browser blocked it.',

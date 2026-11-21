@@ -1,6 +1,25 @@
 <?php
 
 return [
+    'sort_asc' => 'Aufsteigend sortieren',
+    'sort_desc' => 'Absteigend sortieren',
+    'sort_clear' => 'Sortierung aufheben',
+    'hide_column' => 'Spalte ausblenden',
+    'copy_column' => 'Spalte kopieren',
+    'select_page' => 'Alle auf dieser Seite auswählen',
+    'deselect_all' => 'Auswahl aufheben',
+    'reset_filters' => 'Filter zurücksetzen',
+    'reload_table' => 'Tabelle neu laden',
+    'copy_table' => 'Tabelle kopieren',
+    'copy_page_link' => 'Link zu dieser Seite kopieren',
+    'reload_page' => 'Seite neu laden',
+    'forward' => 'Vorwärts',
+    'copy_selection' => 'Ausgewählten Text kopieren',
+    'copy_value' => 'Wert kopieren',
+    'label_table' => 'Aktionen für diese Tabelle',
+    'label_column' => 'Aktionen für diese Spalte',
+    'label_entry' => 'Aktionen für diesen Wert',
+
     'copy_cell' => 'Zelltext kopieren',
     'copied' => 'Kopiert',
     'copy_failed' => 'Kopieren nicht möglich. Ihr Browser hat den Zugriff blockiert.',

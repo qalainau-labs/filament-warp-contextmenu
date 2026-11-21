@@ -6,6 +6,11 @@ All notable changes to `qalainau/filament-warp-contextmenu` are documented here.
 
 ### Added
 
+- Column-header menus with native sorting, column visibility and copy; table-space menus with header actions, selection, filter reset, reload and TSV copy. Opt out with `contextMenuHeaders(false)` or `contextMenuTable(false)`.
+- Page menus enabled by default across page chrome and widgets, with navigation, link copy and selected-text copy; `pages(false)` opts out. Infolist entry actions and default Copy value, with `contextMenuCopyValue(false)`.
+- Ten-language surface labels, PHPStan consumer coverage and surface payload, routing and browser regression tests.
+- Compatibility with Filament 5.9's legacy null record-title resolver; browser fixtures with a defined password-reveal scope and paths resolved from each script.
+
 - `Table::contextMenuClipboard(bool $condition = true)` to hide Copy row and Clipboard from a table's row and cell menus while preserving panel capture and input paste.
 
 - Row context menus using existing Filament `recordActions()` or a separate list of native actions, evaluated per record for visibility, authorization, labels, icons, colors, badges and disabled reasons.
