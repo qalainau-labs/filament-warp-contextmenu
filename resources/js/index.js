@@ -1,4 +1,4 @@
-import { surface, hideColumn } from './core/surfaces.js'
+import { surface, hideColumn, keyboardTarget } from './core/surfaces.js'
 import { search, shouldShowSearch } from './core/search.js'
 import { shouldCloseOnScroll } from './core/scroll.js'
 import { safeUrl } from './core/url.js'
@@ -10,7 +10,7 @@ let cache = new WeakMap()
 let settledRows = new WeakMap()
 let surfaceCache = new WeakMap()
 let active = null
-let lastRow = null
+let lastTarget = null
 let touch = null
 let suppressClick = 0
 const mobile = () => innerWidth < 640
@@ -543,10 +543,11 @@ function bootstrap(marker) {
         event.preventDefault(); open(context, point(event))
     })
     document.addEventListener('pointerover', event => {
-        const context = targetFor(event.target) ?? targetFor(event.target.closest?.('.fi-ta')?.querySelector('[wire\\:key*=".table.records."]'))
+        const pointed = targetFor(event.target)
+        if (['record', 'column', 'entry'].includes(pointed?.config.kind)) lastTarget = event.target
+        const context = pointed ?? targetFor(event.target.closest?.('.fi-ta')?.querySelector('[wire\\:key*=".table.records."]'))
         if (!context) return
         if (context.row) {
-            lastRow = context.row
             fetchRows(context)
         } else {
             fetchSurface(context)
@@ -570,10 +571,12 @@ function bootstrap(marker) {
         if (event.key !== 'ContextMenu' && !(event.shiftKey && event.key === 'F10')) return
         if (event.target.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"])')) return
         const focused = targetFor(event.target)
-        const context = focused ?? targetFor(lastRow)
+        const hovered = lastTarget?.isConnected ? targetFor(lastTarget) : null
+        const source = keyboardTarget({ focused: focused?.config.kind, hovered: hovered?.config.kind })
+        const context = source === 'focused' ? focused : source === 'hovered' ? hovered : null
         if (!context) return
         event.preventDefault()
-        const r = (context.row ?? event.target).getBoundingClientRect()
+        const r = (context.row ?? context.target).getBoundingClientRect()
         open(context, { x: r.left + 16, y: r.top + 16 }, true)
     })
     document.addEventListener('pointerdown', event => {
@@ -600,7 +603,7 @@ function bootstrap(marker) {
         if (active && shouldCloseOnScroll({ sheet: active.sheet, insideMenu: active.menu.contains(event.target), start: active.scroll.get(event.target), current: scrollPosition(event.target) })) close()
     }, true)
     window.addEventListener('resize', () => close())
-    document.addEventListener('livewire:navigated', () => { close(); cancelTouch(); cache = new WeakMap(); settledRows = new WeakMap(); surfaceCache = new WeakMap(); lastRow = null })
+    document.addEventListener('livewire:navigated', () => { close(); cancelTouch(); cache = new WeakMap(); settledRows = new WeakMap(); surfaceCache = new WeakMap(); lastTarget = null })
     window.Livewire.hook('morph.removed', ({ el }) => { if (active?.context.row && el.contains(active.context.row)) close() })
     window.Livewire.hook('morph.updating', ({ component }) => { cache.delete(component.el); settledRows.delete(component.el); surfaceCache.delete(component.el) })
 }

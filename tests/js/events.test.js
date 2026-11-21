@@ -400,3 +400,20 @@ it('shows the existing record empty message when the first fetch returns no acti
     await flush()
     expect(document.querySelector('[role=menu]').textContent).toBe('No actions for this record')
 })
+
+// A page marker makes body resolve to a page even when a specific surface was hovered.
+it.each(['ContextMenu', 'F10'])('uses the hovered cell with body focus and %s when pages are enabled', async key => {
+    const recordReply = { abc: { items: [{ type: 'item', name: 'edit', label: 'Edit' }], cells: {} } }
+    component.$call.mockImplementation(async (method, keys, kind) => kind === 'record' ? recordReply : [])
+    const pageMarker = marker.cloneNode(true)
+    pageMarker.dataset.warpContextMenuKind = 'page'
+    pageMarker.dataset.warpContextMenuConfig = JSON.stringify({ kind: 'page', messages: { ...messages, label_page: 'Page actions' }, css: 'data:text/css,' })
+    table.parentElement.append(pageMarker)
+    target.dispatchEvent(new MouseEvent('pointerover', { bubbles: true }))
+    await flush()
+    document.activeElement?.blur()
+    document.body.dispatchEvent(new KeyboardEvent('keydown', { key, shiftKey: key === 'F10', bubbles: true, cancelable: true }))
+    await flush()
+    expect(document.querySelector('[role=menu]')?.getAttribute('aria-label')).toBe('Record actions')
+    expect(document.querySelector('[role=menu]')?.textContent).toContain('Edit')
+})

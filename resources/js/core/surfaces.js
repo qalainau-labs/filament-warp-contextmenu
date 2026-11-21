@@ -14,3 +14,10 @@ export function hideColumn(columns, name) {
         ? { ...column, columns: hideColumn(column.columns, name) }
         : column.name === name && column.isToggleable !== false ? { ...column, isToggled: false } : { ...column })
 }
+
+// A page context is the keyboard fallback, after focused and remembered surfaces.
+export function keyboardTarget({ focused, hovered }) {
+    if (focused && focused !== 'page') return 'focused'
+    if (hovered && hovered !== 'page') return 'hovered'
+    return focused === 'page' ? 'focused' : null
+}

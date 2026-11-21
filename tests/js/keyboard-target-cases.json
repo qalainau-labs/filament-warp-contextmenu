@@ -1,0 +1,15 @@
+[
+  {"name":"focused record wins over hovered record","input":{"focused":"record","hovered":"record"},"expected":"focused"},
+  {"name":"focused column wins over hovered record","input":{"focused":"column","hovered":"record"},"expected":"focused"},
+  {"name":"focused entry wins over hovered record","input":{"focused":"entry","hovered":"record"},"expected":"focused"},
+  {"name":"focused table wins over hovered record","input":{"focused":"table","hovered":"record"},"expected":"focused"},
+  {"name":"page focus uses hovered record","input":{"focused":"page","hovered":"record"},"expected":"hovered"},
+  {"name":"absent focus uses hovered record","input":{"focused":null,"hovered":"record"},"expected":"hovered"},
+  {"name":"page focus uses hovered column","input":{"focused":"page","hovered":"column"},"expected":"hovered"},
+  {"name":"absent focus uses hovered column","input":{"focused":null,"hovered":"column"},"expected":"hovered"},
+  {"name":"page focus uses hovered entry","input":{"focused":"page","hovered":"entry"},"expected":"hovered"},
+  {"name":"absent focus uses hovered entry","input":{"focused":null,"hovered":"entry"},"expected":"hovered"},
+  {"name":"page without hover","input":{"focused":"page"},"expected":"focused"},
+  {"name":"no available context","input":{},"expected":null},
+  {"name":"hovered page alone is not specific","input":{"hovered":"page"},"expected":null}
+]
