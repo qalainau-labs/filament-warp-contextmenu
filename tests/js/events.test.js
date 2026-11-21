@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { beforeEach, afterEach, it, expect, vi } from 'vitest'
 
-let marker, table, target, component, hook, factory, documentListeners, windowListeners
+let marker, table, target, component, hooks, factory, documentListeners, windowListeners
 const nativeClosest = Element.prototype.closest
 const nativeQueryAll = Element.prototype.querySelectorAll
 const messages = { loading: 'Loading', label_record: 'Record actions', copy_cell: 'Copy', open_link_new_tab: 'Open', copy_link: 'Link' }
@@ -31,8 +31,8 @@ beforeEach(async () => {
     table = document.querySelector('.fi-ta')
     target = document.querySelector('td div')
     component = { $call: vi.fn(async method => method === '__warpContextMenu' ? { abc: { items: [{ type: 'item', name: 'edit', label: 'Edit', context: {} }], cells: {} } } : null) }
-    hook = vi.fn()
-    window.Livewire = { find: () => component, hook: (_, callback) => { hook = callback } }
+    hooks = {}
+    window.Livewire = { find: () => component, hook: (name, callback) => { hooks[name] = callback } }
     window.Alpine = { $data: () => ({ getSelectedRecordsCount: () => 0 }) }
     factory = (await import('../../resources/js/index.js')).default
     factory().init.call({ $el: marker })
@@ -73,7 +73,7 @@ it('keeps the native menu for prefetched empty rows', async () => {
 it('discards prefetched rows after a Livewire morph', async () => {
     target.dispatchEvent(new MouseEvent('pointerover', { bubbles: true }))
     await flush()
-    hook({ component: { el: table.closest('[wire\\:id]') } })
+    hooks['morph.updating']({ component: { el: table.closest('[wire\\:id]') } })
     rightClick()
     await flush()
     expect(component.$call).toHaveBeenCalledTimes(2)
@@ -131,4 +131,51 @@ it('excludes built-in copy, link and clipboard items from the search threshold',
     await flush()
     expect(document.querySelectorAll('[role=menuitem]')).toHaveLength(10)
     expect(document.querySelector('.fi-warp-contextmenu-menu-search')).toBeNull()
+})
+
+it('keeps the open payload during morphs and fetches fresh actions on reopening', async () => {
+    rightClick(); await flush()
+    const menu = document.querySelector('[role=menu]')
+    component.$call.mockResolvedValue({ abc: { items: [{ type: 'item', name: 'updated', label: 'Updated' }], cells: {} } })
+    hooks['morph.updating']({ component: { el: table.closest('[wire\\:id]') } })
+    expect(document.querySelector('[role=menu]')).toBe(menu)
+    expect(menu.textContent).toContain('Edit')
+    rightClick(); await flush()
+    expect(document.querySelector('[role=menu]').textContent).toContain('Updated')
+    expect(component.$call).toHaveBeenCalledTimes(2)
+})
+
+it('closes only when the open row or its ancestor is removed', async () => {
+    rightClick(); await flush()
+    const menu = document.querySelector('[role=menu]')
+    hooks['morph.removed']?.({ el: target })
+    hooks['morph.removed']?.({ el: document.createElement('tr') })
+    expect(document.querySelector('[role=menu]')).toBe(menu)
+    hooks['morph.removed']?.({ el: table })
+    expect(document.querySelector('[role=menu]')).toBeNull()
+})
+
+it('ignores menu scrolling and closes at 24px from the opening ancestor position', async () => {
+    table.scrollTop = 100
+    rightClick(); await flush()
+    const menu = document.querySelector('[role=menu]')
+    menu.scrollTop = 100
+    menu.dispatchEvent(new Event('scroll'))
+    expect(document.querySelector('[role=menu]')).toBe(menu)
+    table.scrollTop = 123
+    table.dispatchEvent(new Event('scroll'))
+    expect(document.querySelector('[role=menu]')).toBe(menu)
+    table.scrollTop = 124
+    table.dispatchEvent(new Event('scroll'))
+    expect(document.querySelector('[role=menu]')).toBeNull()
+})
+
+it('keeps a mobile sheet open during background scrolling', async () => {
+    vi.stubGlobal('innerWidth', 390)
+    try {
+        rightClick(); await flush()
+        table.scrollTop = 100
+        table.dispatchEvent(new Event('scroll'))
+        expect(document.querySelector('[role=menu]')).not.toBeNull()
+    } finally { vi.unstubAllGlobals() }
 })

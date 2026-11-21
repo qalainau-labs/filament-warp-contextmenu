@@ -1,0 +1,125 @@
+[
+    {
+        "name": "no movement",
+        "sheet": false,
+        "insideMenu": false,
+        "start": {
+            "x": 10,
+            "y": 100
+        },
+        "current": {
+            "x": 10,
+            "y": 100
+        },
+        "expected": false
+    },
+    {
+        "name": "less than 24px",
+        "sheet": false,
+        "insideMenu": false,
+        "start": {
+            "x": 10,
+            "y": 100
+        },
+        "current": {
+            "x": 10,
+            "y": 123
+        },
+        "expected": false
+    },
+    {
+        "name": "exactly 24px",
+        "sheet": false,
+        "insideMenu": false,
+        "start": {
+            "x": 10,
+            "y": 100
+        },
+        "current": {
+            "x": 10,
+            "y": 124
+        },
+        "expected": true
+    },
+    {
+        "name": "more than 24px",
+        "sheet": false,
+        "insideMenu": false,
+        "start": {
+            "x": 10,
+            "y": 100
+        },
+        "current": {
+            "x": 10,
+            "y": 125
+        },
+        "expected": true
+    },
+    {
+        "name": "negative movement",
+        "sheet": false,
+        "insideMenu": false,
+        "start": {
+            "x": 10,
+            "y": 100
+        },
+        "current": {
+            "x": 10,
+            "y": 76
+        },
+        "expected": true
+    },
+    {
+        "name": "horizontal movement",
+        "sheet": false,
+        "insideMenu": false,
+        "start": {
+            "x": 10,
+            "y": 100
+        },
+        "current": {
+            "x": 34,
+            "y": 100
+        },
+        "expected": true
+    },
+    {
+        "name": "sheet background scroll",
+        "sheet": true,
+        "insideMenu": false,
+        "start": {
+            "x": 0,
+            "y": 0
+        },
+        "current": {
+            "x": 0,
+            "y": 500
+        },
+        "expected": false
+    },
+    {
+        "name": "inside menu",
+        "sheet": false,
+        "insideMenu": true,
+        "start": {
+            "x": 0,
+            "y": 0
+        },
+        "current": {
+            "x": 0,
+            "y": 500
+        },
+        "expected": false
+    },
+    {
+        "name": "unrelated scroller",
+        "sheet": false,
+        "insideMenu": false,
+        "start": null,
+        "current": {
+            "x": 0,
+            "y": 500
+        },
+        "expected": false
+    }
+]

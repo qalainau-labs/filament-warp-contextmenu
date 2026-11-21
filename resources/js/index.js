@@ -1,4 +1,5 @@
 import { search, shouldShowSearch } from './core/search.js'
+import { shouldCloseOnScroll } from './core/scroll.js'
 import { safeUrl } from './core/url.js'
 import * as clipboard from './clipboard.js'
 import { position, normalize, navigate, shortcut, longPress, safeTriangle, selectedLabel } from './core/menu.js'
@@ -34,6 +35,16 @@ function targetFor(target) {
     if (!component) return null
     const config = JSON.parse(selected.dataset.warpContextMenuConfig)
     return { row: key ? row : null, key, table, config, component, componentEl, target }
+}
+
+const scrollPosition = target => target === document
+    ? { x: window.scrollX, y: window.scrollY }
+    : { x: target.scrollLeft, y: target.scrollTop }
+
+function openingScroll(target) {
+    const positions = new Map([[document, scrollPosition(document)]])
+    for (let node = target; node instanceof Element; node = node.parentElement) positions.set(node, scrollPosition(node))
+    return positions
 }
 
 function nativeMenu(event) {
@@ -337,7 +348,7 @@ function openPaste(target, anchor, allowEmpty = false) {
     close()
     const config = JSON.parse(marker.dataset.warpContextMenuConfig)
     const menu = el('div', 'fi-warp-contextmenu-menu'); menu.setAttribute('role', 'menu'); menu.setAttribute('aria-label', config.messages.clipboard_paste)
-    const state = { menu, context: { config, target }, kind: 'clipboard', pasteTarget: target, selection: [target.selectionStart, target.selectionEnd], focus: target, anchor }
+    const state = { menu, context: { config, target }, kind: 'clipboard', scroll: openingScroll(target), sheet: mobile(), pasteTarget: target, selection: [target.selectionStart, target.selectionEnd], focus: target, anchor }
     state.items = clipboardItems(state); active = state; document.body.append(menu); draw(state); menu.querySelector('input')?.focus()
     return true
 }
@@ -349,7 +360,7 @@ async function open(context, anchor, keyboard = false) {
     const kind = bulk ? 'bulk' : context.config.kind
     const menu = el('div', 'fi-warp-contextmenu-menu')
     menu.setAttribute('role', 'menu'); menu.setAttribute('aria-label', context.config.messages[`label_${kind}`])
-    const state = { context, menu, kind, focus: document.activeElement }
+    const state = { context, menu, kind, scroll: openingScroll(context.target), sheet: mobile(), focus: document.activeElement }
     active = state
     context.row?.setAttribute('data-warp-context-menu-open', '')
     context.row?.classList.add('fi-warp-contextmenu-open-row')
@@ -449,10 +460,14 @@ function bootstrap(marker) {
     document.addEventListener('pointerup', cancelTouch, { passive: true })
     document.addEventListener('pointercancel', cancelTouch, { passive: true })
     document.addEventListener('click', event => { if (suppressClick > Date.now()) { suppressClick = 0; event.preventDefault(); event.stopImmediatePropagation(); return } if (active && !active.menu.contains(event.target)) close() }, true)
-    document.addEventListener('scroll', event => { cancelTouch(); if (active && !active.menu.contains(event.target)) close() }, true)
+    document.addEventListener('scroll', event => {
+        cancelTouch()
+        if (active && shouldCloseOnScroll({ sheet: active.sheet, insideMenu: active.menu.contains(event.target), start: active.scroll.get(event.target), current: scrollPosition(event.target) })) close()
+    }, true)
     window.addEventListener('resize', () => close())
     document.addEventListener('livewire:navigated', () => { close(); cancelTouch(); cache = new WeakMap(); settledRows = new WeakMap(); lastRow = null })
-    window.Livewire.hook('morph.updating', ({ component }) => { cache.delete(component.el); settledRows.delete(component.el); if (active?.context.componentEl === component.el) close() })
+    window.Livewire.hook('morph.removed', ({ el }) => { if (active?.context.row && el.contains(active.context.row)) close() })
+    window.Livewire.hook('morph.updating', ({ component }) => { cache.delete(component.el); settledRows.delete(component.el) })
 }
 
 export default function warpContextMenu() {
