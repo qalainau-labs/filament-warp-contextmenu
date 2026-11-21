@@ -32,7 +32,7 @@ Page menus are on by default; disable with `pages(false)`.
 | Copy cells, rows, links or custom values | "Links and copying" |
 | Find nested actions and add keywords | "Search" |
 | Empty payloads, key limits and browser escape routes | "Browser menu and empty menus" |
-| Optional Warp Clipboard integration | "Clipboard history（Warp Clipboard）" |
+| Optional Warp Clipboard integration | "Clipboard history (Warp Clipboard)" |
 | Keyboard shortcuts | "Keyboard" |
 | Phone sheets and Back navigation | "Touch" |
 | ARIA roles and focus | "Accessibility" |
@@ -98,7 +98,7 @@ Typing searches labels and `contextMenuKeywords()` across submenus; results show
 
 Cell copy and link actions are enabled by default on configured tables. Disable with `contextMenuCopyCell(false)` or `contextMenuLinks(false)`. A custom `contextMenuCopy()` closure receives the row record and copies its returned value instead of mounting. Hidden or unauthorized actions never enter the payload.
 
-## Clipboard history（Warp Clipboard）
+## Clipboard history (Warp Clipboard)
 
 Clipboard history is provided by the separate **Warp Clipboard** plugin. When installed and enabled, it adds a Clipboard submenu to row, selection, page and entry menus.
 
