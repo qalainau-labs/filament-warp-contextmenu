@@ -179,3 +179,23 @@ it('keeps a mobile sheet open during background scrolling', async () => {
         expect(document.querySelector('[role=menu]')).not.toBeNull()
     } finally { vi.unstubAllGlobals() }
 })
+
+
+it('hides Remove all for empty clipboard history and shows it for recent entries', async () => {
+    const config = JSON.parse(marker.dataset.warpContextMenuConfig)
+    Object.assign(config, { clipboard: { enabled: true, key: 'test-empty-history', limit: 10, persist: true } })
+    Object.assign(config.messages, { clipboard: 'Clipboard', clipboard_empty: 'Nothing copied yet', clipboard_clear_all: 'Remove all', clipboard_add: 'Add text' })
+    marker.dataset.warpContextMenuConfig = JSON.stringify(config)
+    for (const entries of [[], [{ value: 'Recent text', time: Date.now() }]]) {
+        localStorage.setItem(config.clipboard.key, JSON.stringify(entries))
+        rightClick(); await flush()
+        const button = [...document.querySelectorAll('[role=menuitem]')].find(node => node.getAttribute('aria-label') === 'Clipboard')
+        button.click()
+        const submenu = document.querySelector('.fi-warp-contextmenu-menu-submenu')
+        expect(submenu.textContent.includes('Nothing copied yet')).toBe(entries.length === 0)
+        expect(submenu.textContent.includes('Remove all')).toBe(entries.length > 0)
+        expect(submenu.textContent).toContain('＋ Add text')
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    }
+    localStorage.removeItem(config.clipboard.key)
+})

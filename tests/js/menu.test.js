@@ -1,7 +1,11 @@
+import positionCases from './position-cases.json'
 import { describe, it, expect } from 'vitest'
 import { position, normalize, navigate, typeahead, shortcut, longPress, safeTriangle, selectedLabel } from '../../resources/js/core/menu.js'
 
 describe('position', () => {
+    it.each(positionCases)('$name', ({ point, size, viewport, rtl, expected }) => {
+        expect(position(point, size, viewport, rtl, true)).toEqual(expected)
+    })
     it('flips at the right and bottom viewport edges', () => {
         expect(position({ x: 980, y: 740 }, { width: 200, height: 300 }, { width: 1000, height: 800 })).toEqual({ x: 780, y: 440, maxHeight: 784 })
     })

@@ -2,13 +2,31 @@ export function position(point, size, viewport, rtl = false, submenu = false) {
     const margin = 8
     let x = rtl ? point.x - size.width : point.x
     let y = point.y
-    if (x + size.width > viewport.width - margin) x = (submenu ? point.left ?? point.x : point.x) - size.width
-    if (x < margin) x = submenu ? point.right ?? point.x : margin
+    let maxHeight = Math.max(0, viewport.height - margin * 2)
+    if (submenu) {
+        const left = (point.left ?? point.x) - size.width
+        const right = point.right ?? point.x
+        const fitsLeft = left >= margin
+        const fitsRight = right + size.width <= viewport.width - margin
+        if (rtl ? fitsLeft : fitsRight) x = rtl ? left : right
+        else if (rtl ? fitsRight : fitsLeft) x = rtl ? right : left
+        else {
+            x = Math.max(margin, Math.min(x, viewport.width - size.width - margin))
+            const below = Math.max(0, viewport.height - margin - (point.bottom ?? point.y))
+            const above = Math.max(0, point.y - margin)
+            const openBelow = size.height <= below || (size.height > above && below >= above)
+            maxHeight = openBelow ? below : above
+            y = openBelow ? (point.bottom ?? point.y) : point.y - Math.min(size.height, maxHeight)
+            return { x, y: Math.max(margin, y), maxHeight }
+        }
+    }
+    if (!submenu && x + size.width > viewport.width - margin) x = (submenu ? point.left ?? point.x : point.x) - size.width
+    if (!submenu && x < margin) x = submenu ? point.right ?? point.x : margin
     if (y + size.height > viewport.height - margin) y = point.y - size.height
     return {
         x: Math.max(margin, Math.min(x, viewport.width - size.width - margin)),
         y: Math.max(margin, y),
-        maxHeight: Math.max(0, viewport.height - margin * 2),
+        maxHeight,
     }
 }
 

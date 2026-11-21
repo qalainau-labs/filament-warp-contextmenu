@@ -86,7 +86,7 @@ function close(restore = false) {
 }
 
 function place(menu, anchor, submenu = false) {
-    if (mobile()) { menu.style.maxHeight = `${innerHeight - 16}px`; return }
+    if (mobile()) { menu.style.maxHeight = '80dvh'; return }
     const rect = menu.getBoundingClientRect()
     const pos = position(anchor, rect, { width: innerWidth, height: innerHeight }, rtl(), submenu)
     if (innerWidth >= 640 || submenu) {
@@ -164,7 +164,8 @@ function renderItems(menu, items, state, parentButton = null) {
         submenu.addEventListener('pointerenter', () => clearTimeout(submenuTimer))
         const rect = button.getBoundingClientRect()
         renderItems(submenu, item.items, state, button)
-        place(submenu, { x: rtl() ? rect.left : rect.right, y: rect.top, left: rect.left, right: rect.right }, true)
+        const parentRect = menu.getBoundingClientRect()
+        place(submenu, { x: rtl() ? parentRect.left : parentRect.right, y: rect.top, left: parentRect.left, right: parentRect.right, bottom: rect.bottom }, true)
         button.setAttribute('aria-expanded', 'true')
         return submenu
     }
@@ -336,7 +337,7 @@ function clipboardItems(state) {
     return normalize([
         section(true), section(false),
         ...(!data.length ? [action(messages.clipboard_empty, () => {})] : []),
-        action(messages[data.some(entry => entry.kept) ? 'clipboard_clear' : 'clipboard_clear_all'], () => { clipboard.clear(); refreshClipboard(state) }, true),
+        ...(data.length ? [action(messages[data.some(entry => entry.kept) ? 'clipboard_clear' : 'clipboard_clear_all'], () => { clipboard.clear(); refreshClipboard(state) }, true)] : []),
         action('＋ ' + messages.clipboard_add, () => editor(state), true),
     ])
 }

@@ -1,0 +1,218 @@
+[
+    {
+        "name": "right fits",
+        "point": {
+            "x": 300,
+            "y": 100,
+            "left": 100,
+            "right": 300,
+            "bottom": 144
+        },
+        "size": {
+            "width": 220,
+            "height": 200
+        },
+        "viewport": {
+            "width": 800,
+            "height": 600
+        },
+        "rtl": false,
+        "expected": {
+            "x": 300,
+            "y": 100,
+            "maxHeight": 584
+        }
+    },
+    {
+        "name": "long German labels flip left",
+        "point": {
+            "x": 680,
+            "y": 100,
+            "left": 400,
+            "right": 680,
+            "bottom": 144
+        },
+        "size": {
+            "width": 300,
+            "height": 200
+        },
+        "viewport": {
+            "width": 800,
+            "height": 600
+        },
+        "rtl": false,
+        "expected": {
+            "x": 100,
+            "y": 100,
+            "maxHeight": 584
+        }
+    },
+    {
+        "name": "RTL prefers left",
+        "point": {
+            "x": 400,
+            "y": 100,
+            "left": 400,
+            "right": 680,
+            "bottom": 144
+        },
+        "size": {
+            "width": 300,
+            "height": 200
+        },
+        "viewport": {
+            "width": 800,
+            "height": 600
+        },
+        "rtl": true,
+        "expected": {
+            "x": 100,
+            "y": 100,
+            "maxHeight": 584
+        }
+    },
+    {
+        "name": "RTL flips right",
+        "point": {
+            "x": 20,
+            "y": 100,
+            "left": 20,
+            "right": 300,
+            "bottom": 144
+        },
+        "size": {
+            "width": 300,
+            "height": 200
+        },
+        "viewport": {
+            "width": 800,
+            "height": 600
+        },
+        "rtl": true,
+        "expected": {
+            "x": 300,
+            "y": 100,
+            "maxHeight": 584
+        }
+    },
+    {
+        "name": "exact left space fits",
+        "point": {
+            "x": 600,
+            "y": 100,
+            "left": 308,
+            "right": 600,
+            "bottom": 144
+        },
+        "size": {
+            "width": 300,
+            "height": 200
+        },
+        "viewport": {
+            "width": 800,
+            "height": 600
+        },
+        "rtl": false,
+        "expected": {
+            "x": 8,
+            "y": 100,
+            "maxHeight": 584
+        }
+    },
+    {
+        "name": "overlap below trigger",
+        "point": {
+            "x": 500,
+            "y": 100,
+            "left": 250,
+            "right": 500,
+            "bottom": 144
+        },
+        "size": {
+            "width": 400,
+            "height": 200
+        },
+        "viewport": {
+            "width": 800,
+            "height": 600
+        },
+        "rtl": false,
+        "expected": {
+            "x": 392,
+            "y": 144,
+            "maxHeight": 448
+        }
+    },
+    {
+        "name": "overlap above trigger",
+        "point": {
+            "x": 500,
+            "y": 450,
+            "left": 250,
+            "right": 500,
+            "bottom": 494
+        },
+        "size": {
+            "width": 400,
+            "height": 200
+        },
+        "viewport": {
+            "width": 800,
+            "height": 600
+        },
+        "rtl": false,
+        "expected": {
+            "x": 392,
+            "y": 250,
+            "maxHeight": 442
+        }
+    },
+    {
+        "name": "tall overlap scrolls below",
+        "point": {
+            "x": 500,
+            "y": 100,
+            "left": 250,
+            "right": 500,
+            "bottom": 144
+        },
+        "size": {
+            "width": 400,
+            "height": 900
+        },
+        "viewport": {
+            "width": 800,
+            "height": 600
+        },
+        "rtl": false,
+        "expected": {
+            "x": 392,
+            "y": 144,
+            "maxHeight": 448
+        }
+    },
+    {
+        "name": "tall overlap scrolls above",
+        "point": {
+            "x": 500,
+            "y": 450,
+            "left": 250,
+            "right": 500,
+            "bottom": 494
+        },
+        "size": {
+            "width": 400,
+            "height": 900
+        },
+        "viewport": {
+            "width": 800,
+            "height": 600
+        },
+        "rtl": false,
+        "expected": {
+            "x": 392,
+            "y": 8,
+            "maxHeight": 442
+        }
+    }
+]
