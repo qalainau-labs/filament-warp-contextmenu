@@ -1,4 +1,4 @@
-import { search, flatten } from './core/search.js'
+import { search, shouldShowSearch } from './core/search.js'
 import { safeUrl } from './core/url.js'
 import * as clipboard from './clipboard.js'
 import { position, normalize, navigate, shortcut, longPress, safeTriangle, selectedLabel } from './core/menu.js'
@@ -61,7 +61,7 @@ function isKnownEmpty(context) {
     const column = context.target.closest('[data-warp-context-menu-column]')?.dataset.warpContextMenuColumn
     return !(row.items?.length || row.cells?.[column]?.length
         || (context.config.copyCell && context.target.closest('td, .fi-ta-col'))
-        || (context.config.links && context.target.closest('a[href]')) || context.config.clipboard?.enabled)
+        || (context.config.links && context.target.closest('a[href]')) || (context.config.clipboardMenu !== false && context.config.clipboard?.enabled))
 }
 
 function close(restore = false) {
@@ -248,7 +248,7 @@ function draw(state, query = '') {
     menu.classList.remove('fi-warp-contextmenu-menu-has-submenu')
     menu.replaceChildren()
     const visible = query ? search(items, query) : items
-    if (query || flatten(items).length >= 8 || state.pasteTarget) {
+    if (query || state.showSearch || state.pasteTarget) {
         const input = el('input', 'fi-warp-contextmenu-menu-search')
         input.type = 'search'; input.placeholder = context.config.messages.search_placeholder
         input.setAttribute('aria-label', input.placeholder); input.value = query
@@ -371,8 +371,9 @@ async function open(context, anchor, keyboard = false) {
     if (active !== state) return
     menu.replaceChildren()
     items = normalize(items)
+    state.showSearch = shouldShowSearch(items)
     if (bulk) state.heading = selectedLabel(context.config.messages.selected, scope.getSelectedRecordsCount())
-    if (clipboard.clipboardSettings()) {
+    if (context.config.clipboardMenu !== false && clipboard.clipboardSettings()) {
         if (kind === 'record' && context.row) copies.push({ type: 'item', label: context.config.messages.copy_row, run: () => copy([...context.row.querySelectorAll('td')].filter(cell => cell.getClientRects().length && !cell.querySelector('input[type=checkbox]') && !cell.querySelector('.fi-ta-actions')).map(cell => cell.innerText.trim()).join('\t'), state) })
         copies.push({ type: 'submenu', clipboardMenu: true, label: context.config.messages.clipboard, items: clipboardItems(state) })
     }

@@ -52,6 +52,13 @@ final class Macros
 
             return $self;
         });
+        Table::macro('contextMenuClipboard', function (bool $condition = true): Table {
+            $self = $this; // @phpstan-ignore variable.undefined
+            Macros::set($self, 'enabled', true);
+            Macros::set($self, 'clipboard', $condition);
+
+            return $self;
+        });
         Table::macro('contextMenuLinks', function (bool $condition = true): Table {
             $self = $this; // @phpstan-ignore variable.undefined
             Macros::set($self, 'enabled', true);

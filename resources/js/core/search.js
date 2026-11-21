@@ -10,3 +10,7 @@ export function search(items, query) {
     const needle = fold(query)
     return flatten(items).filter(item => fold([item.label, item.path, ...(item.keywords ?? [])].join(' ')).includes(needle))
 }
+
+export function shouldShowSearch(items) {
+    return flatten(items).length >= 8
+}

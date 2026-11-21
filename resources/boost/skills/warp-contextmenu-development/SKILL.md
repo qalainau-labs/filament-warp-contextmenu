@@ -106,6 +106,8 @@ use Qalainau\FilamentWarpContextMenu\WarpContextMenuPlugin;
 $panel->plugin(WarpContextMenuPlugin::make()->clipboard(limit: 10, persist: false));
 ```
 
+`$table->contextMenuClipboard(false)` hides Copy row and Clipboard from that table’s row and cell menus. It does not disable panel copy capture or input paste. The boolean defaults to true and cannot enable clipboard when the panel has it disabled.
+
 Captures native panel copy events and clipboard writes, including Filament copyable values. It cannot automatically collect copies from another app. Recent values deduplicate and expire at the configured limit. Kept and manually entered multiline text do not count toward it; named values can be edited and removed. The editor uses Save and Cancel, and refuses blank text.
 
 The Clipboard submenu copies again and manages history. Input right-click and Ctrl+Shift+V / Command+Shift+V paste at the caret or replace a selection and emit `input` for Livewire. Empty input history preserves the browser menu; the keyboard picker can still add text. Password, disabled and read-only inputs do not offer paste.

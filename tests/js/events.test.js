@@ -120,3 +120,15 @@ it('forwards configured arguments and context from the rendered action', async (
     document.querySelector('[role=menuitem]').click()
     expect(component.$call).toHaveBeenLastCalledWith('mountAction', 'argumentAction', { name: 'Delivered' }, { custom: 'context', table: true, recordKey: 'abc' })
 })
+
+it('excludes built-in copy, link and clipboard items from the search threshold', async () => {
+    marker.dataset.warpContextMenuConfig = JSON.stringify({ kind: 'record', copyCell: true, links: true, clipboard: { enabled: true, key: 'search-threshold', limit: 10, persist: false }, messages, css: 'data:text/css,' })
+    factory().init.call({ $el: marker })
+    target.innerHTML = '<a href="https://example.com">Alice</a>'
+    target = target.querySelector('a')
+    component.$call.mockResolvedValue({ abc: { items: Array.from({ length: 5 }, (_, i) => ({ type: 'item', name: `action${i}`, label: `Action ${i}` })), cells: {} } })
+    rightClick()
+    await flush()
+    expect(document.querySelectorAll('[role=menuitem]')).toHaveLength(10)
+    expect(document.querySelector('.fi-warp-contextmenu-menu-search')).toBeNull()
+})

@@ -202,7 +202,7 @@ final class Menus
             if ($action instanceof ActionGroup) {
                 $children = self::serialize($action->getActions(), $record);
                 if ($children !== []) {
-                    $items[] = ['type' => $action->hasDropdown() ? 'submenu' : 'section', 'label' => self::text($action->getLabel()), 'icon' => self::icon($action->getIcon()), 'items' => $children];
+                    $items[] = ['type' => $action->hasDropdown() ? 'submenu' : 'section', 'label' => self::text($action->getLabel()), 'icon' => self::icon($action->getBaseIcon()), 'items' => $children];
                 }
 
                 continue;
@@ -265,6 +265,7 @@ final class Menus
 
         return [
             'clipboard' => $clipboard,
+            'clipboardMenu' => $table ? Macros::get($table, 'clipboard', true) : true,
             'kind' => $kind,
             'copyCell' => $table ? Macros::get($table, 'copyCell', true) : false,
             'links' => $table ? Macros::get($table, 'links', true) : false,

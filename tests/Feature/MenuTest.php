@@ -3,6 +3,7 @@
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkAction;
+use Filament\Facades\Filament;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\View\ViewException;
@@ -243,4 +244,32 @@ it('omits hidden and toggled cell menus while preserving the following column', 
 
         return true;
     });
+});
+
+it('only renders explicitly configured group icons', function () {
+    MenuTable::$configure = fn ($table) => $table->contextMenu([
+        ActionGroup::make([Action::make('plain')])->label('Plain'),
+        ActionGroup::make([Action::make('decorated')])->label('Decorated')->icon(fn () => 'heroicon-o-flag'),
+    ]);
+    livewire(MenuTable::class)->call('__warpContextMenu', [$this->record->id])->assertReturned(function ($data) {
+        expect($data[$this->record->id]['items'][0]['icon'])->toBeNull();
+        expect($data[$this->record->id]['items'][1]['icon'])->toContain('<svg');
+
+        return true;
+    });
+});
+
+it('controls table clipboard menus independently of panel capture and paste', function () {
+    $plugin = Filament::getCurrentPanel()->getPlugin('warp-contextmenu')->clipboard();
+    $table = livewire(MenuTable::class)->instance()->getTable();
+    $panelClipboard = Menus::clientConfig('page')['clipboard'];
+    expect($panelClipboard['enabled'])->toBeTrue();
+    expect(Menus::clientConfig('record', $table)['clipboardMenu'])->toBeTrue();
+    expect($table->contextMenuClipboard(false))->toBe($table);
+    expect(Menus::clientConfig('record', $table))->toMatchArray(['clipboardMenu' => false, 'clipboard' => $panelClipboard]);
+    expect(Menus::clientConfig('page')['clipboard'])->toBe($panelClipboard);
+    $table->contextMenuClipboard();
+    expect(Menus::clientConfig('record', $table)['clipboardMenu'])->toBeTrue();
+    $plugin->clipboard(false);
+    expect(Menus::clientConfig('record', $table)['clipboard']['enabled'])->toBeFalse();
 });

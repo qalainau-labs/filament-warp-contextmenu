@@ -4,7 +4,14 @@ All notable changes to `qalainau/filament-warp-contextmenu` are documented here.
 
 ## [Unreleased]
 
+### Fixed
+
+- Show automatic search only for at least eight developer actions, including submenu children, excluding built-in copy, link and clipboard entries.
+- Omit the default Filament ellipsis icon from action groups unless an icon is explicitly configured.
+
 ### Added
+
+- `Table::contextMenuClipboard(bool $condition = true)` to hide Copy row and Clipboard from a table's row and cell menus while preserving panel capture and input paste.
 
 - Row context menus using existing Filament `recordActions()` or a separate list of native actions, evaluated per record for visibility, authorization, labels, icons, colors, badges and disabled reasons.
 - `ActionGroup` submenus and labeled sections, explicit separators, checked actions and displayed keyboard shortcuts.

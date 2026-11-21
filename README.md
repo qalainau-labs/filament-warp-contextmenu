@@ -262,6 +262,14 @@ $panel->plugin(WarpContextMenuPlugin::make()->clipboard(limit: 10, persist: fals
 | `int $limit` | `10` | Maximum recent values; negative limits become zero. Kept values do not count. |
 | `bool $persist` | `true` | `localStorage`; `false` uses `sessionStorage`. |
 
+Disable **Copy row** and **Clipboard ›** for one table's row and cell menus while keeping panel copy capture and input paste enabled:
+
+```php
+$table->contextMenuClipboard(false); // bool $condition = true
+```
+
+Calling `contextMenuClipboard()` restores these menu entries when the panel's `clipboard()` is enabled. Cell copy and link actions keep their own settings.
+
 Copies inside the panel enter history: Ctrl+C / ⌘C, the browser's Copy command, Filament `copyable()` fields using `navigator.clipboard.writeText`, and this plugin's cell, row, link and custom copy actions. Capturing the native copy event and wrapping clipboard writes does not read the operating system clipboard. Copies from Excel, email or another app cannot be collected automatically: browsers require explicit user permission and interaction to read that clipboard.
 
 History stores the text, its source when known (for example, an invoice number and column label; otherwise the page title), and its copy time. Source and localized relative time appear below the value. Copying the same value moves it to the top. Whitespace-only values are ignored. Older recent copies fall out after ten values by default. **Keep** saves an item until you stop keeping or remove it; kept items appear first and do not consume the recent limit. **Remove all except kept items** clears only the recent values.
