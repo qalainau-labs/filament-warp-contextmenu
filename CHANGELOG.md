@@ -2,24 +2,19 @@
 
 All notable changes to `qalainau/filament-warp-contextmenu` are documented here.
 
-## [Unreleased]
+## [1.0.0] - 2026-11-21
 
 ### Added
 
-- Column-header menus with native sorting, column visibility and copy; table-space menus with header actions, selection, filter reset, reload and TSV copy. Opt out with `contextMenuHeaders(false)` or `contextMenuTable(false)`.
-- Page menus enabled by default across page chrome and widgets, with navigation, link copy and selected-text copy; `pages(false)` opts out. Infolist entry actions and default Copy value, with `contextMenuCopyValue(false)`.
-- Ten-language surface labels, PHPStan consumer coverage and surface payload, routing and browser regression tests.
-- Compatibility with Filament 5.9's legacy null record-title resolver; browser fixtures with a defined password-reveal scope and paths resolved from each script.
-
-- `Table::contextMenuClipboard(bool $condition = true)` to hide the optional Warp Clipboard submenu for a table.
-
-- Row context menus using existing Filament `recordActions()` or a separate list of native actions, evaluated per record for visibility, authorization, labels, icons, colors, badges and disabled reasons.
-- `ActionGroup` submenus and labeled sections, explicit separators, checked actions and displayed keyboard shortcuts.
-- Selected-record menus using toolbar bulk actions or a dedicated list, preserving Filament's all-pages selection.
-- Cell menus on standard table columns and optional page menus from header actions or `getContextMenuActions()`.
-- Copy cell text, tab-separated visible row values, link addresses and custom action values; open underlying links in a new tab.
-- Search across submenu actions with flattened result paths, case and accent folding, extra action keywords and empty-result feedback.
-- Keyboard opening and navigation, focus restoration, native browser menu escape routes, touch long press, and mobile bottom sheets with submenu Back navigation.
-- Filament styling, light and dark modes, RTL layout, WAI-ARIA menu states, copy announcements and ten interface languages.
-- Tenant-scoped table record lookup, hidden-action payload filtering, Filament action mounting and a 100-key request limit.
-- Laravel Boost guidelines and development skill, PHPStan macro support, and PHP, JavaScript and browser tests.
+- Row context menus with `$table->contextMenu()`, reusing the table's `recordActions()` or a separate list of native Filament actions. Each action is evaluated per record for visibility, authorization, label, icon, color, badge and disabled reason.
+- `ActionGroup` submenus, labeled sections with `->dropdown(false)`, `ContextMenu::separator()`, `contextMenuChecked()` and displayed `keyBindings()`.
+- Selected-row menus with the toolbar bulk actions or `contextMenuBulkActions()`, keeping Filament's all-pages selection.
+- Cell menus with `Column::contextMenu()`, Copy cell text (`contextMenuCopyCell()`), Copy row, link actions (`contextMenuLinks()`) and copy actions with `contextMenuCopy()`.
+- Column-header menus (sort, hide column, copy column; `contextMenuHeaders(false)`) and table-space menus (header actions, select all, deselect, reset filters, reload, copy table; `contextMenuTable(false)`).
+- Page menus anywhere outside tables (header actions or `getContextMenuActions()`, copy page link, reload, back, forward, copy selected text; `WarpContextMenuPlugin::make()->pages(false)` turns them off) and infolist entry menus with `Entry::contextMenu()` and `contextMenuCopyValue()`.
+- Search inside the menu, including submenus, with `contextMenuKeywords()`.
+- Keyboard access (ContextMenu key, Shift+F10, arrows, Home/End, Escape), touch long press and a bottom sheet on phones. Shift + right-click always opens the browser menu.
+- Records are looked up again through the table query (tenant-aware); hidden and unauthorized actions are never sent to the browser.
+- Filament styling, light and dark mode, RTL and ten languages.
+- With Warp Clipboard installed, a Clipboard submenu; `contextMenuClipboard(false)` hides it for one table.
+- Laravel Boost guidelines and a development skill.
