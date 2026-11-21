@@ -32,7 +32,7 @@ export const remove = value => update(items => history.remove(items, value))
 export const clear = () => update(history.clear)
 export function save(value, name, previous = null) {
     update((items, limit) => previous === null
-        ? history.add(items, { value, name, kept: true, source: document.title, time: Date.now() }, limit)
+        ? history.add(items, { value, name, kept: true, addedByUser: true, source: null, time: Date.now() }, limit)
         : history.edit(items, previous, { value, name, kept: true, time: Date.now() }, limit))
 }
 export const inputTarget = target => target instanceof Element && target.matches('textarea, input:not([type]), input[type=text], input[type=email], input[type=search], input[type=url], input[type=tel], input[type=number]') && !target.disabled && !target.readOnly && !target.closest('.fi-warp-contextmenu-menu')

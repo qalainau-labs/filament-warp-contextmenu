@@ -80,6 +80,7 @@ function close(restore = false) {
     const previous = active
     active = null
     previous.menu.remove()
+    previous.scrollSpace?.remove()
     previous.context.row?.removeAttribute('data-warp-context-menu-open')
     previous.context.row?.classList.remove('fi-warp-contextmenu-open-row')
     if (restore && previous.focus?.isConnected) previous.focus.focus({ preventScroll: true })
@@ -260,6 +261,7 @@ function draw(state, query = '') {
     menu.classList.remove('fi-warp-contextmenu-menu-has-submenu')
     menu.replaceChildren()
     const visible = query ? search(items, query) : items
+    if (state.heading) menu.append(el('div', 'fi-warp-contextmenu-menu-heading', state.heading))
     if (query || state.showSearch || state.pasteTarget) {
         const input = el('input', 'fi-warp-contextmenu-menu-search')
         input.type = 'search'; input.placeholder = context.config.messages.search_placeholder
@@ -281,7 +283,6 @@ function draw(state, query = '') {
         })
         menu.append(input)
     }
-    if (state.heading) menu.append(el('div', 'fi-warp-contextmenu-menu-heading', state.heading))
     if (!visible.length) menu.append(el('div', 'fi-warp-contextmenu-menu-heading', context.config.messages.search_empty.replace(':query', query)))
     renderItems(menu, visible, state)
     if (state.pasteTarget) menu.append(el('div', 'fi-warp-contextmenu-menu-detail', context.config.messages.clipboard_native_hint))
@@ -323,7 +324,7 @@ function clipboardItems(state) {
     const data = clipboard.entries()
     const section = kept => ({ type: 'section', label: messages[kept ? 'clipboard_saved_section' : 'clipboard_recent_section'], items: data.filter(entry => !!entry.kept === kept).map(entry => {
         const label = entry.name || entry.value.replace(/\s+/g, ' ')
-        const detail = [entry.source || document.title, clipboard.relativeTime(entry.time, state.context.config.locale ?? document.documentElement.lang)].filter(Boolean).join(' · ')
+        const detail = [entry.addedByUser ? messages.clipboard_added_text : entry.source || document.title, clipboard.relativeTime(entry.time, state.context.config.locale ?? document.documentElement.lang)].filter(Boolean).join(' · ')
         const copyEntry = () => { if (state.pasteTarget) { clipboard.paste(state.pasteTarget, entry.value, state.selection); clipboard.capture(entry.value, entry.source) } else copy(entry.value, state) }
         if (state.pasteTarget) return { ...action(label, copyEntry), detail, strong: !!entry.name, preview: entry.name ? entry.value : null, keywords: [entry.value, entry.name ?? ''] }
         const update = run => () => { run(); refreshClipboard(state) }
@@ -371,6 +372,7 @@ async function open(context, anchor, keyboard = false) {
     if (kind === 'record') {
         const rows = await fetchRows(context)
         const row = rows[context.key] ?? (await context.component.$call('__warpContextMenu', [context.key], 'record').catch(() => ({})))[context.key]
+        if (state.sheet) state.heading = row?.title || context.key
         const column = context.target.closest('[data-warp-context-menu-column]')?.dataset.warpContextMenuColumn
         items = [...(row?.cells?.[column] ?? []), ...(row?.items ?? [])]
         const cell = context.target.closest('td, .fi-ta-col')
@@ -384,7 +386,7 @@ async function open(context, anchor, keyboard = false) {
     menu.replaceChildren()
     items = normalize(items)
     state.showSearch = shouldShowSearch(items)
-    if (bulk) state.heading = selectedLabel(context.config.messages.selected, scope.getSelectedRecordsCount())
+    if (bulk) state.heading = selectedLabel(context.config.selectedCount, scope.getSelectedRecordsCount(), context.config.locale)
     if (context.config.clipboardMenu !== false && clipboard.clipboardSettings()) {
         if (kind === 'record' && context.row) copies.push({ type: 'item', label: context.config.messages.copy_row, run: () => copy([...context.row.querySelectorAll('td')].filter(cell => cell.getClientRects().length && !cell.querySelector('input[type=checkbox]') && !cell.querySelector('.fi-ta-actions')).map(cell => cell.innerText.trim()).join('\t'), state) })
         copies.push({ type: 'submenu', clipboardMenu: true, label: context.config.messages.clipboard, items: clipboardItems(state) })
@@ -395,6 +397,19 @@ async function open(context, anchor, keyboard = false) {
     state.anchor = anchor
     draw(state)
     place(menu, anchor)
+    if (state.sheet && context.row) {
+        const row = context.row.getBoundingClientRect()
+        const sheetTop = innerHeight - menu.offsetHeight
+        const distance = row.height > sheetTop ? row.top : Math.max(0, row.bottom - sheetTop + 8)
+        const remaining = Math.max(0, document.documentElement.scrollHeight - innerHeight - window.scrollY)
+        if (distance > remaining) {
+            state.scrollSpace = el('div', '')
+            state.scrollSpace.setAttribute('aria-hidden', 'true')
+            state.scrollSpace.style.cssText = `height:${Math.ceil(distance - remaining)}px;flex-shrink:0;grid-column:1 / -1`
+            document.body.append(state.scrollSpace)
+        }
+        if (distance) window.scrollBy({ top: distance, behavior: 'smooth' })
+    }
     menu.querySelector(keyboard ? 'button' : 'input,button')?.focus({ preventScroll: true })
 }
 

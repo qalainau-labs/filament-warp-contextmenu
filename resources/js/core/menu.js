@@ -85,7 +85,7 @@ export function safeTriangle(point, origin, edgeTop, edgeBottom) {
     return !((a < 0 || b < 0 || c < 0) && (a > 0 || b > 0 || c > 0))
 }
 
-export function selectedLabel(template, count) {
+export function selectedLabel(template, count, locale = 'en') {
     const parts = template.split('|')
-    return (parts[count === 1 ? 0 : parts.length - 1] ?? '').replace(/^(\{[^}]+\}|\[[^\]]+\])\s*/, '').replaceAll(':count', String(count))
+    return (parts[count === 1 ? 0 : parts.length - 1] ?? '').replace(/^(\{[^}]+\}|\[[^\]]+\])\s*/, '').replaceAll(':count', new Intl.NumberFormat(locale.replaceAll('_', '-')).format(count))
 }

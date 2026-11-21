@@ -199,3 +199,49 @@ it('hides Remove all for empty clipboard history and shows it for recent entries
     }
     localStorage.removeItem(config.clipboard.key)
 })
+
+
+it.each([250, 700])('scrolls a mobile card of height %ipx above the sheet and shows its title first', async height => {
+    vi.stubGlobal('innerWidth', 390)
+    vi.stubGlobal('innerHeight', 844)
+    try {
+        component.$call.mockResolvedValue({ abc: { title: '<Alice>', items: [{ type: 'item', name: 'edit', label: 'Edit' }], cells: {} } })
+        const row = target.closest('tr')
+        vi.spyOn(row, 'getBoundingClientRect').mockReturnValue({ top: 400, bottom: 400 + height, height })
+        vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(444)
+        const scroll = vi.spyOn(window, 'scrollBy').mockImplementation(() => document.dispatchEvent(new Event('scroll')))
+        rightClick(); await flush()
+        expect(scroll).toHaveBeenCalledWith({ top: height > 400 ? 400 : 258, behavior: 'smooth' })
+        const menu = document.querySelector('[role=menu]')
+        expect(menu.firstElementChild.textContent).toBe('<Alice>')
+        expect(menu.querySelector('alice')).toBeNull()
+        const space = document.body.lastElementChild
+        expect(space.getAttribute('aria-hidden')).toBe('true')
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+        expect(space.isConnected).toBe(false)
+    } finally { vi.unstubAllGlobals() }
+})
+
+it('keeps the record title out of desktop menus', async () => {
+    component.$call.mockResolvedValue({ abc: { title: 'Alice title', items: [{ type: 'item', name: 'edit', label: 'Edit' }], cells: {} } })
+    rightClick(); await flush()
+    expect(document.querySelector('[role=menu]').textContent).not.toContain('Alice title')
+})
+
+it('labels manually added clipboard text in the current locale and preserves copied sources', async () => {
+    const config = JSON.parse(marker.dataset.warpContextMenuConfig)
+    Object.assign(config, { clipboard: { enabled: true, key: 'test-added-text', limit: 10, persist: true } })
+    Object.assign(config.messages, { clipboard: 'Clipboard', clipboard_added_text: '自分で足した文字', clipboard_add: 'Add text' })
+    marker.dataset.warpContextMenuConfig = JSON.stringify(config)
+    const clipboard = await import('../../resources/js/clipboard.js')
+    clipboard.capture('Copied value', 'Invoice · Name')
+    clipboard.save('Typed value', 'Typed name')
+    expect(clipboard.entries()[0]).toMatchObject({ addedByUser: true, source: null })
+    rightClick(); await flush()
+    const button = [...document.querySelectorAll('[role=menuitem]')].find(node => node.getAttribute('aria-label') === 'Clipboard')
+    button.click()
+    const submenu = document.querySelector('.fi-warp-contextmenu-menu-submenu')
+    expect(submenu.textContent).toContain('自分で足した文字')
+    expect(submenu.textContent).toContain('Invoice · Name')
+    localStorage.removeItem(config.clipboard.key)
+})

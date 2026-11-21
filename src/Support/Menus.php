@@ -177,6 +177,9 @@ final class Menus
             if (! $record) {
                 continue;
             }
+            $result[(string) $key]['title'] = $record instanceof Model && ($table->hasCustomRecordTitle() || filled($table->getRecordTitleAttribute()))
+                ? (self::text($table->getRecordTitle($record)) ?: (string) $key)
+                : (string) $key;
             $result[(string) $key]['items'] = self::serialize($prepared['record'], $record);
             foreach ($prepared['cells'] as $column => $actions) {
                 $result[(string) $key]['cells'][$column] = self::serialize($actions, $record);
@@ -271,6 +274,7 @@ final class Menus
             'links' => $table ? Macros::get($table, 'links', true) : false,
             'bulk' => $table ? Macros::get($table, 'bulkEnabled', false) : false,
             'locale' => app()->getLocale(),
+            'selectedCount' => __('filament-tables::table.selection_indicator.selected_count'),
             'clipboardButtons' => collect(['save' => 'primary', 'cancel' => 'gray'])->map(fn (string $color) => (new \Filament\Support\View\ComponentAttributeBag)
                 ->class(['fi-btn', 'fi-size-sm'])
                 ->color(ButtonComponent::make(), $color)

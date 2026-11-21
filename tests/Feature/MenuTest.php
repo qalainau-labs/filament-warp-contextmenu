@@ -68,7 +68,7 @@ it('registers menu-only actions and mounts them through Filament', function () {
 
 it('does not expose or mount an unauthorized action', function () {
     $this->actingAs(User::create(['name' => 'Blocked', 'email' => 'blocked@example.com']));
-    livewire(MenuTable::class)->call('__warpContextMenu', [$this->record->id])->assertReturned([$this->record->id => ['items' => [], 'cells' => []]])
+    livewire(MenuTable::class)->call('__warpContextMenu', [$this->record->id])->assertReturned([$this->record->id => ['items' => [], 'cells' => [], 'title' => (string) $this->record->id]])
         ->call('mountAction', 'rename', [], ['table' => true, 'recordKey' => (string) $this->record->id])->assertSet('mountedActions', []);
     expect($this->record->fresh()->name)->toBe('Alice');
 });
@@ -272,4 +272,24 @@ it('controls table clipboard menus independently of panel capture and paste', fu
     expect(Menus::clientConfig('record', $table)['clipboardMenu'])->toBeTrue();
     $plugin->clipboard(false);
     expect(Menus::clientConfig('record', $table)['clipboard']['enabled'])->toBeFalse();
+});
+
+it('includes the configured record title or falls back to its key', function () {
+    foreach (['attribute', 'custom', 'empty', 'key'] as $mode) {
+        MenuTable::$configure = fn (Table $table) => match ($mode) {
+            'attribute' => $table->recordTitleAttribute('name'),
+            'custom' => $table->recordTitle(fn ($record) => 'Customer '.$record->name),
+            'empty' => $table->recordTitle(fn () => ''),
+            default => $table,
+        };
+        livewire(MenuTable::class)->call('__warpContextMenu', [$this->record->id])->assertReturned(function ($data) use ($mode) {
+            expect($data[$this->record->id]['title'])->toBe(match ($mode) {
+                'attribute' => 'Alice',
+                'custom' => 'Customer Alice',
+                default => (string) $this->record->id,
+            });
+
+            return true;
+        });
+    }
 });

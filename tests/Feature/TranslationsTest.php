@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Arr;
 use Illuminate\Support\ServiceProvider;
+use Qalainau\FilamentWarpContextMenu\Support\Menus;
 use Qalainau\FilamentWarpContextMenu\WarpContextMenuServiceProvider;
 
 // 10 言語（en・ja と de・fr・es・it・pt_BR・ko・zh_CN・zh_TW）。いまは en と ja だけなので、8 言語が足されるまで最初のテストは落ちる
@@ -126,5 +127,15 @@ it('has every JavaScript message and all three dynamic menu labels in English', 
     foreach ($keys as $key) {
         expect($english)->toHaveKey($key);
         expect($english[$key])->toBeString()->not->toBe('');
+    }
+});
+
+it('uses Filament selection messages and identifies manually added text in all ten locales', function () {
+    foreach (['de', 'en', 'es', 'fr', 'it', 'ja', 'ko', 'pt_BR', 'zh_CN', 'zh_TW'] as $locale) {
+        app()->setLocale($locale);
+        $config = Menus::clientConfig('record');
+        expect($config['selectedCount'])->toBe(__('filament-tables::table.selection_indicator.selected_count'));
+        expect($config['messages'])->not->toHaveKey('selected');
+        expect($config['messages']['clipboard_added_text'])->toBeString()->not->toBe('');
     }
 });

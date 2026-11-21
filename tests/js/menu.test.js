@@ -75,3 +75,9 @@ it('selects the final plural form for zero and templates with many forms', () =>
     expect(selectedLabel(message, 0)).toBe('0 records')
     expect(selectedLabel(message, 4)).toBe('4 records')
 })
+
+it('formats Filament selection counts like the table indicator', () => {
+    expect(selectedLabel('1 Datensatz ausgewählt|:count Datensätze ausgewählt', 1234, 'de')).toBe('1.234 Datensätze ausgewählt')
+    expect(selectedLabel('1件選択済み|:count件選択済み', 1234, 'ja')).toBe('1,234件選択済み')
+    expect(selectedLabel('已选 :count 条记录', 2, 'zh_CN')).toBe('已选 2 条记录')
+})
