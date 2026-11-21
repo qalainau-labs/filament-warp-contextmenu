@@ -1,5 +1,8 @@
 <?php
 
+// テストのアプリの storage をプロセスごとに分ける（同時に流すほかのテストの Storage::fake() に消されない。shared/php-test/isolated-storage.php）
+require_once __DIR__.'/Support/isolated-storage.php';
+
 use Filament\Facades\Filament;
 use Illuminate\Database\Eloquent\Model;
 use Qalainau\FilamentWarpContextMenu\Tests\Fixtures\User;
