@@ -327,7 +327,7 @@ function clipboardItems(state) {
         if (state.pasteTarget) return { ...action(label, copyEntry), detail, strong: !!entry.name, preview: entry.name ? entry.value : null, keywords: [entry.value, entry.name ?? ''] }
         const update = run => () => { run(); refreshClipboard(state) }
         return { type: 'submenu', label, detail, strong: !!entry.name, preview: entry.name ? entry.value : null, items: [
-            action(messages.copy_cell, copyEntry),
+            action(messages.clipboard_copy_again, copyEntry),
             action(messages[entry.kept ? 'clipboard_unsave' : 'clipboard_save'], update(() => clipboard.keep(entry.value, !entry.kept)), true),
             ...(entry.kept ? [action(messages.clipboard_edit, () => editor(state, entry), true)] : []),
             action(messages.clipboard_delete, update(() => clipboard.remove(entry.value)), true),
@@ -336,7 +336,7 @@ function clipboardItems(state) {
     return normalize([
         section(true), section(false),
         ...(!data.length ? [action(messages.clipboard_empty, () => {})] : []),
-        action(messages.clipboard_clear, () => { clipboard.clear(); refreshClipboard(state) }, true),
+        action(messages[data.some(entry => entry.kept) ? 'clipboard_clear' : 'clipboard_clear_all'], () => { clipboard.clear(); refreshClipboard(state) }, true),
         action('＋ ' + messages.clipboard_add, () => editor(state), true),
     ])
 }
