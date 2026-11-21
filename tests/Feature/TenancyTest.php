@@ -36,3 +36,9 @@ it('works in a panel without a tenant', function () {
     usePanel('admin');
     livewire(ListCustomers::class)->call('__warpContextMenu', [$this->foreign->id])->assertReturned(fn ($data) => $data[$this->foreign->id]['items'][0]['label'] === 'Rename Theirs');
 });
+
+it('mounts and executes an action on the current team record', function () {
+    livewire(ListCustomers::class)->call('mountAction', 'rename', [], ['table' => true, 'recordKey' => (string) $this->ours->id]);
+    expect($this->ours->fresh()->name)->toBe('Renamed');
+    expect($this->foreign->fresh()->name)->toBe('Theirs');
+});

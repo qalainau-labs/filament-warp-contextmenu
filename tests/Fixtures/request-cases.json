@@ -1,9 +1,10 @@
 [
-    {"name":"null kind", "keys":"record", "kind":null},
-    {"name":"numeric kind", "keys":"record", "kind":1},
-    {"name":"boolean kind", "keys":"record", "kind":true},
-    {"name":"array kind", "keys":"record", "kind":[]},
-    {"name":"unknown kind", "keys":"record", "kind":"unknown"},
-    {"name":"non-array keys", "keys":"not an array", "kind":"record"},
-    {"name":"invalid key types", "keys":[null, [], true, 1.5, {"key":1}], "kind":"record"}
+    {"name": "null kind", "keys": "record", "kind": null},
+    {"name": "numeric kind", "keys": "record", "kind": 1},
+    {"name": "boolean kind", "keys": "record", "kind": true},
+    {"name": "array kind", "keys": "record", "kind": []},
+    {"name": "unknown kind", "keys": "record", "kind": "unknown"},
+    {"name": "non-array keys", "keys": "not an array", "kind": "record"},
+    {"name": "invalid key types", "keys": [null, [], true, 1.5, {"key": 1}], "kind": "record"},
+    {"name": "invalid key followed by valid record", "keys": [[], "record"], "kind": "record", "returnsRecord": true}
 ]

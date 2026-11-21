@@ -34,8 +34,8 @@ it('evaluates all action properties for each record without disclosing hidden na
         Action::make('forbidden')->authorize(false),
     ]);
     livewire(MenuTable::class)->call('__warpContextMenu', [$this->record->id, $other->id])->assertReturned(function ($data) use ($other) {
-        expect($data[$this->record->id]['items'][0])->toMatchArray(['label' => 'Alice', 'disabled' => false, 'checked' => true, 'color' => 'success', 'badge' => '2', 'newTab' => true, 'shortcut' => ['mod+e']]);
-        expect($data[$other->id]['items'][0])->toMatchArray(['label' => 'Bob', 'disabled' => true, 'tooltip' => 'Already paid', 'checked' => false]);
+        expect($data[$this->record->id]['items'][0])->toMatchArray(['label' => 'Alice', 'disabled' => false, 'checked' => true, 'checkable' => true, 'color' => 'success', 'badge' => '2', 'newTab' => true, 'shortcut' => ['mod+e']]);
+        expect($data[$other->id]['items'][0])->toMatchArray(['label' => 'Bob', 'disabled' => true, 'tooltip' => 'Already paid', 'checked' => false, 'checkable' => true]);
         expect(json_encode($data))->not->toContain('secretName', 'Secret label', 'forbidden');
 
         return true;
@@ -169,4 +169,78 @@ it('mirrors only bulk actions from a toolbar that also contains ordinary actions
         ActionGroup::make([BulkAction::make('bulkInGroup')])->label('Bulk'),
     ])->contextMenuBulkActions();
     livewire(MenuTable::class)->call('__warpContextMenu', [], 'bulk')->assertReturned(fn ($items) => count($items) === 1 && $items[0]['items'][0]['name'] === 'bulkInGroup');
+});
+
+it('passes configured arguments and context from payload to native mounting', function () {
+    MenuTable::$configure = fn ($table) => $table->contextMenu([
+        Action::make('withArguments')->arguments(['name' => 'Argument delivered'])
+            ->action(fn ($record, array $arguments) => $record->update(['name' => $arguments['name']])),
+    ]);
+    $payload = null;
+    $test = livewire(MenuTable::class)->call('__warpContextMenu', [$this->record->id])->assertReturned(function ($data) use (&$payload) {
+        $payload = $data[$this->record->id]['items'][0];
+        expect($payload)->toMatchArray([
+            'arguments' => ['name' => 'Argument delivered'],
+            'context' => ['table' => true, 'recordKey' => (string) $this->record->id], 'checkable' => false,
+        ]);
+
+        return true;
+    });
+    $test->call('mountAction', $payload['name'], $payload['arguments'], $payload['context']);
+    expect($this->record->fresh()->name)->toBe('Argument delivered');
+});
+
+it('mounts grouped and following actions across separators and blocks the grouped child', function () {
+    MenuTable::$configure = fn ($table) => $table->contextMenu([
+        ContextMenu::separator(),
+        ActionGroup::make([Action::make('a')->authorize(fn () => auth()->user()?->email !== 'blocked@example.com')
+            ->action(fn ($record) => $record->update(['name' => 'Grouped']))])->label('Group'),
+        ContextMenu::separator(),
+        Action::make('b')->action(fn ($record) => $record->update(['name' => 'Following'])),
+    ]);
+    $context = ['table' => true, 'recordKey' => (string) $this->record->id];
+    livewire(MenuTable::class)->call('mountAction', 'a', [], $context);
+    expect($this->record->fresh()->name)->toBe('Grouped');
+    livewire(MenuTable::class)->call('mountAction', 'b', [], $context);
+    expect($this->record->fresh()->name)->toBe('Following');
+    $this->actingAs(User::create(['name' => 'Blocked', 'email' => 'blocked@example.com']));
+    livewire(MenuTable::class)->call('mountAction', 'a', [], $context)->assertSet('mountedActions', []);
+    expect($this->record->fresh()->name)->toBe('Following');
+});
+
+it('rejects non actions in record menus', function () {
+    MenuTable::$configure = fn ($table) => $table->contextMenu(['invalid']);
+    livewire(MenuTable::class);
+})->throws(ViewException::class, 'expected a Filament Action, ActionGroup or ContextMenu::separator().');
+
+it('rejects ordinary actions in bulk menus', function () {
+    MenuTable::$configure = fn ($table) => $table->contextMenuBulkActions([Action::make('ordinary')]);
+    livewire(MenuTable::class);
+})->throws(ViewException::class, 'expected a Filament action (BulkAction for selected records).');
+
+it('rejects names conflicting with registered table actions', function () {
+    MenuTable::$configure = fn ($table) => $table->recordActions([Action::make('rename')]);
+    livewire(MenuTable::class);
+})->throws(ViewException::class, 'action name [rename] conflicts with a registered table action.');
+
+it('omits hidden and toggled cell menus while preserving the following column', function () {
+    MenuTable::$configure = fn ($table) => $table->columns([
+        TextColumn::make('hidden')->hidden()->contextMenu([Action::make('hiddenCell')]),
+        TextColumn::make('toggled')->toggleable()->contextMenu([Action::make('toggledCell')]),
+        TextColumn::make('name')->contextMenu([Action::make('visibleCell')]),
+    ]);
+    $test = livewire(MenuTable::class);
+    $columns = $test->instance()->tableColumns;
+    foreach ($columns as &$column) {
+        if ($column['name'] === 'toggled') {
+            $column['isToggled'] = false;
+        }
+    }
+    unset($column);
+    $test->call('applyTableColumnManager', $columns)->call('__warpContextMenu', [$this->record->id])->assertReturned(function ($data) {
+        expect(array_keys($data[$this->record->id]['cells']))->toBe(['name']);
+        expect($data[$this->record->id]['cells']['name'][0])->toMatchArray(['name' => 'visibleCell', 'checkable' => false]);
+
+        return true;
+    });
 });

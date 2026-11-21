@@ -20,5 +20,8 @@ it('keeps UUID records inside the UUID tenant query for both menus and mounting'
         expect($data[$foreign->id])->toBe(['items' => [], 'cells' => []]);
 
         return true;
-    })->call('mountAction', 'rename', [], ['table' => true, 'recordKey' => $foreign->id])->assertSet('mountedActions', []);
+    })->call('mountAction', 'rename', [], ['table' => true, 'recordKey' => $foreign->id])->assertSet('mountedActions', [])
+        ->call('mountAction', 'rename', [], ['table' => true, 'recordKey' => $ours->id]);
+    expect($ours->fresh()->name)->toBe('Renamed');
+    expect($foreign->fresh()->name)->toBe('Foreign UUID');
 });

@@ -55,3 +55,19 @@ it('uses translated plural selection messages', () => {
     expect(selectedLabel(message, 8)).toBe('8 records selected')
     expect(selectedLabel(':count 件の記録を選択中', 8)).toBe('8 件の記録を選択中')
 })
+
+
+it('preserves coordinates for fitting menus including the exact usable width', () => {
+    expect(position({ x: 40, y: 30 }, { width: 200, height: 100 }, { width: 800, height: 600 })).toEqual({ x: 40, y: 30, maxHeight: 584 })
+    expect(position({ x: 592, y: 492 }, { width: 200, height: 100 }, { width: 800, height: 600 })).toEqual({ x: 592, y: 492, maxHeight: 584 })
+})
+it('preserves interior separators and nonempty submenus', () => {
+    const x = { type: 'item', label: 'X' }, y = { type: 'item', label: 'Y' }
+    expect(normalize([x, { type: 'separator' }, y])).toEqual([x, { type: 'separator' }, y])
+    expect(normalize([{ type: 'submenu', label: 'Group', items: [x] }])).toEqual([{ type: 'submenu', label: 'Group', items: [x] }])
+})
+it('selects the final plural form for zero and templates with many forms', () => {
+    const message = '{1} One|{2} Two|{3} Three|[0,*] :count records'
+    expect(selectedLabel(message, 0)).toBe('0 records')
+    expect(selectedLabel(message, 4)).toBe('4 records')
+})

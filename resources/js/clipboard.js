@@ -35,7 +35,7 @@ export function save(value, name, previous = null) {
         ? history.add(items, { value, name, kept: true, source: document.title, time: Date.now() }, limit)
         : history.edit(items, previous, { value, name, kept: true, time: Date.now() }, limit))
 }
-export const inputTarget = target => target instanceof Element && target.matches('textarea, input:not([type]), input[type=text], input[type=email], input[type=search], input[type=url], input[type=tel], input[type=number]') && !target.disabled && !target.readOnly && !target.closest('.fi-wcm')
+export const inputTarget = target => target instanceof Element && target.matches('textarea, input:not([type]), input[type=text], input[type=email], input[type=search], input[type=url], input[type=tel], input[type=number]') && !target.disabled && !target.readOnly && !target.closest('.fi-warp-contextmenu-menu')
 export function paste(target, value, selection) {
     const start = selection?.[0] ?? target.selectionStart ?? target.value.length
     const end = selection?.[1] ?? target.selectionEnd ?? start

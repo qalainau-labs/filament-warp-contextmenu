@@ -116,3 +116,15 @@ it('publishes the translations where Laravel reads the overrides of the warp-con
 
     expect(array_values($paths))->toBe([app()->langPath('vendor/warp-contextmenu')]);
 });
+
+it('has every JavaScript message and all three dynamic menu labels in English', function () {
+    $english = require __DIR__.'/../../resources/lang/en/contextmenu.php';
+    $sources = collect(glob(__DIR__.'/../../resources/js/*.js'))->map(fn ($file) => file_get_contents($file))->implode("\n");
+    preg_match_all('/messages\.([a-z_]+)/', $sources, $matches);
+    preg_match_all('/messages\[[^\]\n]*[\'"]([a-z_]+)[\'"]\s*:\s*[\'"]([a-z_]+)[\'"]\]/', $sources, $dynamic);
+    $keys = array_unique([...$matches[1], ...$dynamic[1], ...$dynamic[2], 'label_record', 'label_bulk', 'label_page']);
+    foreach ($keys as $key) {
+        expect($english)->toHaveKey($key);
+        expect($english[$key])->toBeString()->not->toBe('');
+    }
+});

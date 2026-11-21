@@ -4,5 +4,6 @@
     {"name": "nested disabled", "items": [{"type": "submenu", "label": "Status", "items": [{"type": "item", "label": "Paid", "disabled": true}]}], "query": "paid", "expected": ["Paid"], "paths": ["Status"]},
     {"name": "no match", "items": [{"type": "item", "label": "Edit"}], "query": "xyz", "expected": []},
     {"name": "path match", "items": [{"type": "submenu", "label": "Status", "items": [{"type": "item", "label": "Draft"}]}], "query": "status", "expected": ["Draft"]},
-    {"name": "Japanese voiced sound is preserved", "items": [{"type": "item", "label": "かく"}, {"type": "item", "label": "がく"}], "query": "が", "expected": ["がく"]}
+    {"name": "Japanese voiced sound is preserved", "items": [{"type": "item", "label": "かく"}, {"type": "item", "label": "がく"}], "query": "が", "expected": ["がく"]},
+    {"name": "parent keywords find child", "items": [{"type": "submenu", "label": "Status", "keywords": ["settlement"], "items": [{"type": "item", "label": "Paid"}]}], "query": "settlement", "expected": ["Paid"], "paths": ["Status"]}
 ]

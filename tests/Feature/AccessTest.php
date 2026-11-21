@@ -5,11 +5,13 @@ use Filament\Actions\BulkAction;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Facades\Filament;
+use Illuminate\Support\Facades\Gate;
 use Qalainau\FilamentWarpContextMenu\Support\Menus;
 use Qalainau\FilamentWarpContextMenu\Tests\Fixtures\Customer;
 use Qalainau\FilamentWarpContextMenu\Tests\Fixtures\MenuPage;
 use Qalainau\FilamentWarpContextMenu\Tests\Fixtures\MenuTable;
 use Qalainau\FilamentWarpContextMenu\Tests\Fixtures\Resources\Pages\ListCustomers;
+use Qalainau\FilamentWarpContextMenu\Tests\Fixtures\Team;
 use Qalainau\FilamentWarpContextMenu\Tests\Fixtures\User;
 
 use function Pest\Livewire\livewire;
@@ -65,7 +67,19 @@ it('caps the payload at one hundred records', function () {
 
 it('rejects malformed menu requests', function (array $case) {
     $keys = $case['keys'] === 'record' ? [$this->record->id] : $case['keys'];
-    livewire(MenuTable::class)->call('__warpContextMenu', $keys, $case['kind'])->assertReturned([]);
+    if (is_array($keys)) {
+        $keys = array_map(fn ($key) => $key === 'record' ? (string) $this->record->id : $key, $keys);
+    }
+    livewire(MenuTable::class)->call('__warpContextMenu', $keys, $case['kind'])->assertReturned(function ($data) use ($case) {
+        if ($case['returnsRecord'] ?? false) {
+            expect(array_keys($data))->toBe([$this->record->id]);
+            expect($data[$this->record->id]['items'][0])->toMatchArray(['name' => 'rename']);
+        } else {
+            expect($data)->toBe([]);
+        }
+
+        return true;
+    });
 })->with(array_map(fn ($case) => [$case], json_decode(file_get_contents(__DIR__.'/../Fixtures/request-cases.json'), true)));
 
 it('requires page opt in and omits hidden header actions', function () {
@@ -119,3 +133,23 @@ it('filters native page header actions using the access matrix', function (array
     livewire(ListCustomers::class)
         ->call('__warpContextMenu', [], 'page')->assertReturned(fn ($items) => array_column($items, 'name') === $case['expected']);
 })->with(array_map(fn ($case) => [$case], array_filter(json_decode(file_get_contents(__DIR__.'/../Fixtures/access-cases.json'), true), fn ($case) => isset($case['pagesEnabled']))));
+
+it('allows copy for a model without a policy and ordinary payloads for blocked viewers', function () {
+    $record = Team::create(['name' => 'No policy']);
+    expect(Gate::getPolicyFor($record))->toBeNull();
+    MenuTable::$configure = fn ($table) => $table->query(Team::query())->contextMenu([
+        Action::make('copy')->contextMenuCopy(fn ($record) => $record->name),
+    ]);
+    livewire(MenuTable::class)->call('__warpContextMenu', [$record->id])->assertReturned(function ($data) use ($record) {
+        expect($data[$record->id]['items'][0])->toMatchArray(['name' => 'copy', 'copyValue' => 'No policy']);
+
+        return true;
+    });
+    $this->actingAs(User::create(['name' => 'Blocked', 'email' => 'blocked@example.com']));
+    MenuTable::$configure = fn ($table) => $table->contextMenu([Action::make('ordinary')]);
+    livewire(MenuTable::class)->call('__warpContextMenu', [$this->record->id])->assertReturned(function ($data) {
+        expect($data[$this->record->id]['items'][0])->toMatchArray(['name' => 'ordinary', 'copyValue' => null]);
+
+        return true;
+    });
+});

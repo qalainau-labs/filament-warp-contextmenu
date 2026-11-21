@@ -91,11 +91,11 @@ it('returns focus to an action when clearing the search of a small menu', async 
     rightClick()
     await flush()
     document.activeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'e', bubbles: true, cancelable: true }))
-    const input = document.querySelector('.fi-wcm-search')
+    const input = document.querySelector('.fi-warp-contextmenu-menu-search')
     expect(input).not.toBeNull()
     input.value = ''
     input.dispatchEvent(new Event('input', { bubbles: true }))
-    expect(document.querySelector('.fi-wcm-search')).toBeNull()
+    expect(document.querySelector('.fi-warp-contextmenu-menu-search')).toBeNull()
     expect(document.activeElement).toBe(document.querySelector('[role=menuitem]'))
 })
 
@@ -110,4 +110,13 @@ it('keeps copy conveniences together before underlying link actions', async () =
     const nodes = [...document.querySelector('[role=menu]').children].filter(node => !node.matches('input'))
     expect(nodes.map(node => node.getAttribute('role'))).toEqual(['menuitem', 'separator', 'menuitem', 'menuitem', 'menuitem', 'separator', 'menuitem', 'menuitem'])
     expect(nodes.map(node => node.getAttribute('aria-label')).filter(Boolean)).toEqual(['Edit', 'Copy', 'Copy row', 'Clipboard', 'Open', 'Link'])
+})
+
+
+it('forwards configured arguments and context from the rendered action', async () => {
+    component.$call.mockResolvedValue({ abc: { items: [{ type: 'item', name: 'argumentAction', label: 'Arguments', arguments: { name: 'Delivered' }, context: { custom: 'context' } }], cells: {} } })
+    rightClick()
+    await flush()
+    document.querySelector('[role=menuitem]').click()
+    expect(component.$call).toHaveBeenLastCalledWith('mountAction', 'argumentAction', { name: 'Delivered' }, { custom: 'context', table: true, recordKey: 'abc' })
 })
