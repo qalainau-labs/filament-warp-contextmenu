@@ -10,6 +10,7 @@ Right-click a Filament table row, cell, selection or page to use native Filament
 
 - [Features](#features)
 - [Installation](#installation)
+  - [AI coding assistants (Laravel Boost)](#ai-coding-assistants-laravel-boost)
 - [Usage](#usage)
 - [Clipboard](#clipboard)
 - [Keyboard](#keyboard)
@@ -18,7 +19,6 @@ Right-click a Filament table row, cell, selection or page to use native Filament
 - [Security](#security)
 - [Translations](#translations)
 - [Testing](#testing)
-- [AI coding assistants (Laravel Boost)](#ai-coding-assistants-laravel-boost)
 - [Requirements](#requirements)
 - [Support](#support)
 - [License](#license)
@@ -63,6 +63,25 @@ public function panel(Panel $panel): Panel
 ```
 
 No migration, custom column class or Livewire trait is required. After updating the package, run `php artisan filament:assets` again.
+
+### AI coding assistants (Laravel Boost)
+
+Warp Context Menu ships instructions for AI coding assistants such as Claude Code, Cursor and Codex. If your app uses [Laravel Boost](https://laravel.com/docs/boost), the assistant learns to reuse Filament actions, configure search and clipboard history, and test menu payloads.
+
+- **Guidelines** (`resources/boost/guidelines/core.md`): a short summary Boost adds to `CLAUDE.md`, `AGENTS.md` and other agent files. It points to this README in `vendor/`, so assistants read the documentation of the installed version.
+- **Skill** `warp-contextmenu-development` (`resources/boost/skills/`): examples for each area and tests, loaded when the assistant works on Context Menu.
+
+When `php artisan boost:install` asks "Which third-party AI guidelines/skills would you like to install?", select `qalainau/filament-warp-contextmenu`. To do it without the question, add the package to `boost.json` and run the command again:
+
+```json
+{
+    "packages": ["qalainau/filament-warp-contextmenu"]
+}
+```
+
+```bash
+php artisan boost:install --guidelines --skills -n
+```
 
 ## Usage
 
@@ -388,25 +407,6 @@ it('includes a copy action for the invoice', function () {
 ```
 
 This example assumes the `copyNumber` action from “Links and copying” and application factories. Row payloads are keyed by record key and contain `items` and `cells` (keyed by column name). Each item contains its evaluated label, name, disabled state, URL and other display properties; groups contain `items`. Request `'bulk'` or `'page'` with `[]` for those menu payloads. For tenancy tests, set `Filament::setTenant($team, isQuiet: true)` before requesting and assert that another team's key returns empty `items` and `cells`.
-
-## AI coding assistants (Laravel Boost)
-
-Warp Context Menu ships instructions for AI coding assistants such as Claude Code, Cursor and Codex. If your app uses [Laravel Boost](https://laravel.com/docs/boost), the assistant learns to reuse Filament actions, configure search and clipboard history, and test menu payloads.
-
-- **Guidelines** (`resources/boost/guidelines/core.md`): a short summary Boost adds to `CLAUDE.md`, `AGENTS.md` and other agent files. It points to this README in `vendor/`, so assistants read the documentation of the installed version.
-- **Skill** `warp-contextmenu-development` (`resources/boost/skills/`): examples for each area and tests, loaded when the assistant works on Context Menu.
-
-When `php artisan boost:install` asks "Which third-party AI guidelines/skills would you like to install?", select `qalainau/filament-warp-contextmenu`. To do it without the question, add the package to `boost.json` and run the command again:
-
-```json
-{
-    "packages": ["qalainau/filament-warp-contextmenu"]
-}
-```
-
-```bash
-php artisan boost:install --guidelines --skills -n
-```
 
 ## Requirements
 
