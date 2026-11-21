@@ -1,12 +1,21 @@
 {
-  "_comment": "[入口の抜け] の網（2026-11-21）。メニューを開く入口（右クリック・キー・長押し）と、どのメニュー（surfaces）でも同じに確かめること。bin/check-entrances がコードの入口と合っているかを見て、tests/js/entrance-cases.test.js が入口 × surfaces の全部で、中身が空のメニューを開いて expect を確かめる（driver の無い入口があれば落ちる。surfaces は core/surfaces.js の surface() が返す全部と bulk に一致しなければ落ちる）。native＝中身が空と分かっていればブラウザのメニューを止めない、empty-message＝開いて「操作はありません」を出し、黙って閉じない。",
+  "_comment": "[入口の抜け] の網（2026-11-21）。メニューを開く入口（右クリック・キー・長押し）と、どのメニュー（surfaces）でも同じに確かめること。bin/check-entrances がコードの入口と合っているかを見て、tests/js/entrance-cases.test.js が入口 × surfaces の全部で、中身が空のメニューを開いて expect を確かめる（入口の except は、その種類だけ別の結果と理由。driver の無い入口があれば落ちる。surfaces は core/surfaces.js の surface() が返す全部と bulk に一致しなければ落ちる）。native＝中身が空と分かっていればブラウザのメニューを止めない、empty-message＝開いて「操作はありません」を出し、黙って閉じない。",
   "operations": {
     "menu.open": {
       "guard": "中身が空のメニューで、ブラウザのメニューを止めたまま何も出さない（Loading のあと黙って閉じる）ことが無い",
-      "surfaces": ["record", "bulk", "column", "table", "entry", "page"],
+      "surfaces": [
+        "record",
+        "bulk",
+        "column",
+        "table",
+        "entry",
+        "page"
+      ],
       "find": [
         {
-          "files": ["resources/js/index.js"],
+          "files": [
+            "resources/js/index.js"
+          ],
           "pattern": "(?<![.\\w])open\\("
         }
       ],
@@ -15,7 +24,13 @@
           "file": "resources/js/index.js",
           "site": "if \\(!context \\|\\| isKnownEmpty\\(context\\)\\) return\\s*event\\.preventDefault\\(\\); open\\(context, point\\(event\\)\\)",
           "what": "右クリック（contextmenu のイベント）",
-          "expect": "native"
+          "expect": "native",
+          "except": {
+            "bulk": {
+              "expect": "empty-message",
+              "why": "まとめての操作（2 行以上選んだ行のメニュー）は、選んだ行で中身が変わるので先に取らない。空でも開いて「操作はありません」を出す（黙って閉じない）"
+            }
+          }
         },
         "keyboard": {
           "file": "resources/js/index.js",
