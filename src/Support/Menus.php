@@ -8,7 +8,6 @@ use Filament\Actions\BulkAction;
 use Filament\Actions\Contracts\HasActions;
 use Filament\Facades\Filament;
 use Filament\Support\Facades\FilamentAsset;
-use Filament\Support\View\Components\ButtonComponent;
 use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Model;
@@ -275,17 +274,7 @@ final class Menus
 
     public static function clientConfig(string $kind, ?Table $table = null): array
     {
-        $panel = Filament::getCurrentPanel();
-        $plugin = $panel?->hasPlugin('warp-contextmenu') ? $panel->getPlugin('warp-contextmenu') : null;
-        $clipboard = $plugin instanceof WarpContextMenuPlugin ? $plugin->getClipboardConfig() : ['enabled' => false];
-        if ($panel !== null && ($userId = Filament::auth()->id()) !== null) {
-            $clipboard['key'] = 'warp-contextmenu:'.hash('sha256', json_encode([$panel->getId(), $userId, Filament::getTenant()?->getKey()]));
-        } else {
-            $clipboard['enabled'] = false;
-        }
-
         return [
-            'clipboard' => $clipboard,
             'clipboardMenu' => $table ? Macros::get($table, 'clipboard', true) : true,
             'headers' => $table ? Macros::get($table, 'headers', true) : false,
             'tableMenu' => $table ? Macros::get($table, 'table', true) : false,
@@ -295,10 +284,6 @@ final class Menus
             'bulk' => $table ? Macros::get($table, 'bulkEnabled', false) : false,
             'locale' => app()->getLocale(),
             'selectedCount' => __('filament-tables::table.selection_indicator.selected_count'),
-            'clipboardButtons' => collect(['save' => 'primary', 'cancel' => 'gray'])->map(fn (string $color) => (new \Filament\Support\View\ComponentAttributeBag)
-                ->class(['fi-btn', 'fi-size-sm'])
-                ->color(ButtonComponent::make(), $color)
-                ->getAttributes())->all(),
             'messages' => __('warp-contextmenu::contextmenu'),
             'css' => FilamentAsset::getStyleHref('warp-contextmenu', WarpContextMenuServiceProvider::$assetPackage),
         ];

@@ -11,20 +11,6 @@ class WarpContextMenuPlugin implements Plugin
 {
     protected bool $hasPages = true;
 
-    protected array $clipboardConfig = ['enabled' => false, 'limit' => 10, 'persist' => true];
-
-    public function clipboard(bool $enabled = true, int $limit = 10, bool $persist = true): static
-    {
-        $this->clipboardConfig = ['enabled' => $enabled, 'limit' => max(0, $limit), 'persist' => $persist];
-
-        return $this;
-    }
-
-    public function getClipboardConfig(): array
-    {
-        return $this->clipboardConfig;
-    }
-
     public static function make(): static
     {
         return app(static::class);
@@ -49,8 +35,8 @@ class WarpContextMenuPlugin implements Plugin
 
     public function register(Panel $panel): void
     {
-        $panel->renderHook(PanelsRenderHook::PAGE_END, fn () => ($this->hasPages || $this->clipboardConfig['enabled']) && Filament::auth()->check()
-            ? view()->file(__DIR__.'/../resources/views/marker.blade.php', ['config' => Support\Menus::clientConfig($this->hasPages ? 'page' : 'clipboard')]) : '');
+        $panel->renderHook(PanelsRenderHook::PAGE_END, fn () => $this->hasPages && Filament::auth()->check()
+            ? view()->file(__DIR__.'/../resources/views/marker.blade.php', ['config' => Support\Menus::clientConfig('page')]) : '');
     }
 
     public function boot(Panel $panel): void {}

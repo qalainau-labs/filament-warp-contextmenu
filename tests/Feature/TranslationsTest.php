@@ -130,12 +130,11 @@ it('has every JavaScript message and all three dynamic menu labels in English', 
     }
 });
 
-it('uses Filament selection messages and identifies manually added text in all ten locales', function () {
+it('uses Filament selection messages in all ten locales', function () {
     foreach (['de', 'en', 'es', 'fr', 'it', 'ja', 'ko', 'pt_BR', 'zh_CN', 'zh_TW'] as $locale) {
         app()->setLocale($locale);
         $config = Menus::clientConfig('record');
         expect($config['selectedCount'])->toBe(__('filament-tables::table.selection_indicator.selected_count'));
         expect($config['messages'])->not->toHaveKey('selected');
-        expect($config['messages']['clipboard_added_text'])->toBeString()->not->toBe('');
     }
 });

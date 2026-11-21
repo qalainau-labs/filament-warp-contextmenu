@@ -2,7 +2,6 @@ import { surface, hideColumn, keyboardTarget } from './core/surfaces.js'
 import { search, shouldShowSearch } from './core/search.js'
 import { shouldCloseOnScroll } from './core/scroll.js'
 import { safeUrl } from './core/url.js'
-import * as clipboard from './clipboard.js'
 import { position, normalize, navigate, shortcut, longPress, safeTriangle, selectedLabel } from './core/menu.js'
 
 let installed = false
@@ -138,7 +137,7 @@ function isKnownEmpty(context) {
         } else if (kind === 'table' || kind === 'column') items = tableItems(context, entry.payload, null, null)
         else items = entry.payload ?? []
         if (kind === 'page' || kind === 'entry') items = [...items, ...pageCopies(context, null)]
-        if (['page', 'entry'].includes(kind) && context.config.clipboardMenu !== false && clipboard.clipboardSettings()) return false
+        if (['page', 'entry'].includes(kind) && context.config.clipboardMenu !== false && window.WarpClipboard?.enabled()) return false
         return normalize(items).length === 0
     }
     const scope = window.Alpine.$data(context.table)
@@ -146,9 +145,9 @@ function isKnownEmpty(context) {
     const row = settledRows.get(context.componentEl)?.[context.key]
     if (!row) return false
     const column = context.target.closest('[data-warp-context-menu-column]')?.dataset.warpContextMenuColumn
-    return !(row.items?.length || row.cells?.[column]?.length
+    return !(row.items?.length || row.cells?.[column]?.length || context.config.messages.copy_row
         || (context.config.copyCell && context.target.closest('td, .fi-ta-col'))
-        || (context.config.links && context.target.closest('a[href]')) || (context.config.clipboardMenu !== false && context.config.clipboard?.enabled))
+        || (context.config.links && context.target.closest('a[href]')) || (context.config.clipboardMenu !== false && window.WarpClipboard?.enabled()))
 }
 
 function close(restore = false) {
@@ -176,7 +175,6 @@ function place(menu, anchor, submenu = false) {
 async function copy(value, state) {
     try {
         await navigator.clipboard.writeText(value)
-        clipboard.capture(value, clipboard.sourceFor(state.context.target), state.context.target)
         announce(state.context.config.messages.copied)
     } catch {
         announce(state.context.config.messages.copy_failed)
@@ -333,12 +331,11 @@ function renderItems(menu, items, state, parentButton = null) {
 function draw(state, query = '') {
     const { menu, items, context } = state
     state.query = query
-    state.editing = false
     menu.classList.remove('fi-warp-contextmenu-menu-has-submenu')
     menu.replaceChildren()
     const visible = query ? search(items, query) : items
     if (state.heading) menu.append(el('div', 'fi-warp-contextmenu-menu-heading', state.heading))
-    if (query || state.showSearch || state.pasteTarget) {
+    if (query || state.showSearch) {
         const input = el('input', 'fi-warp-contextmenu-menu-search')
         input.type = 'search'; input.placeholder = context.config.messages.search_placeholder
         input.setAttribute('aria-label', input.placeholder); input.value = query
@@ -361,74 +358,42 @@ function draw(state, query = '') {
     }
     if (!visible.length) menu.append(el('div', 'fi-warp-contextmenu-menu-heading', query ? context.config.messages.search_empty.replace(':query', query) : context.config.messages[`empty_${state.kind}`] ?? context.config.messages.empty))
     renderItems(menu, visible, state)
-    if (state.pasteTarget) menu.append(el('div', 'fi-warp-contextmenu-menu-detail', context.config.messages.clipboard_native_hint))
     place(menu, state.anchor)
 }
 
-function editor(state, entry = null) {
-    state.editing = true
-    state.menu.classList.remove('fi-warp-contextmenu-menu-has-submenu')
-    state.menu.replaceChildren()
-    state.menu.onkeydown = null
-    const form = el('form', 'fi-warp-contextmenu-menu-editor')
-    const nameLabel = el('label', '', state.context.config.messages.clipboard_add_name)
-    const name = el('input', ''); name.value = entry?.name ?? ''; nameLabel.append(name)
-    const valueLabel = el('label', '', state.context.config.messages.clipboard_add_value)
-    const value = el('textarea', ''); value.value = entry?.value ?? ''; value.required = true; valueLabel.append(value)
-    const submit = el('button', 'fi-btn fi-size-sm fi-color-primary', state.context.config.messages.clipboard_add_submit); submit.type = 'submit'
-    const validate = () => { submit.disabled = !value.value.trim() || value.value.length > 5000 }; validate(); value.addEventListener('input', validate)
-    const cancel = el('button', 'fi-btn fi-size-sm fi-color-gray', state.context.config.messages.clipboard_add_cancel); cancel.type = 'button'
-    for (const [key, button] of [['save', submit], ['cancel', cancel]]) {
-        for (const [attribute, value] of Object.entries(state.context.config.clipboardButtons?.[key] ?? {})) button.setAttribute(attribute, value)
-    }
-    cancel.addEventListener('click', () => { draw(state); state.menu.querySelector('input,button')?.focus() })
-    const actions = el('div', 'fi-warp-contextmenu-menu-editor-actions'); actions.append(submit, cancel)
-    form.append(nameLabel, valueLabel, actions)
-    form.addEventListener('submit', event => { event.preventDefault(); if (!value.value.trim() || value.value.length > 5000) return; clipboard.save(value.value, name.value, entry?.value ?? null); refreshClipboard(state) })
-    state.menu.append(form); place(state.menu, state.anchor); value.focus()
-}
-
-function refreshClipboard(state) {
-    if (state.pasteTarget) state.items = clipboardItems(state)
-    else state.items = state.items.map(item => item.clipboardMenu ? { ...item, items: clipboardItems(state) } : item)
+function redrawClipboard(state) {
+    state.items = state.items.map(item => item.clipboardMenu ? { ...item, items: clipboardItems(state) } : item)
     draw(state)
 }
 
+function clipboardEditor(state, entry = null) {
+    close()
+    window.WarpClipboard.openEditor(state.anchor, entry)
+}
+
 function clipboardItems(state) {
-    const messages = state.context.config.messages
+    const clipboard = window.WarpClipboard
+    const labels = clipboard.messages
     const action = (label, run, stayOpen = false) => ({ type: 'item', label, run, stayOpen })
     const data = clipboard.entries()
-    const section = kept => ({ type: 'section', label: messages[kept ? 'clipboard_saved_section' : 'clipboard_recent_section'], items: data.filter(entry => !!entry.kept === kept).map(entry => {
+    const section = kept => ({ type: 'section', label: labels[kept ? 'saved_section' : 'recent_section'], items: data.filter(entry => !!entry.kept === kept).map(entry => {
         const label = entry.name || entry.value.replace(/\s+/g, ' ')
-        const detail = [entry.addedByUser ? messages.clipboard_added_text : entry.source || document.title, clipboard.relativeTime(entry.time, state.context.config.locale ?? document.documentElement.lang)].filter(Boolean).join(' · ')
-        const copyEntry = () => { if (state.pasteTarget) { clipboard.paste(state.pasteTarget, entry.value, state.selection); clipboard.capture(entry.value, entry.source) } else copy(entry.value, state) }
-        if (state.pasteTarget) return { ...action(label, copyEntry), detail, strong: !!entry.name, preview: entry.name ? entry.value : null, keywords: [entry.value, entry.name ?? ''] }
-        const update = run => () => { run(); refreshClipboard(state) }
+        const detail = [entry.addedByUser ? labels.added_text : entry.source || document.title, clipboard.relativeTime(entry.time)].filter(Boolean).join(' · ')
+        const copyEntry = () => copy(entry.value, state)
+        const update = run => () => { run(); redrawClipboard(state) }
         return { type: 'submenu', label, detail, strong: !!entry.name, preview: entry.name ? entry.value : null, items: [
-            action(messages.clipboard_copy_again, copyEntry),
-            action(messages[entry.kept ? 'clipboard_unsave' : 'clipboard_save'], update(() => clipboard.keep(entry.value, !entry.kept)), true),
-            ...(entry.kept ? [action(messages.clipboard_edit, () => editor(state, entry), true)] : []),
-            action(messages.clipboard_delete, update(() => clipboard.remove(entry.value)), true),
+            action(labels.copy_again, copyEntry),
+            action(labels[entry.kept ? 'unsave' : 'save'], update(() => clipboard.keep(entry.value, !entry.kept)), true),
+            ...(entry.kept ? [action(labels.edit, () => clipboardEditor(state, entry), true)] : []),
+            action(labels.delete, update(() => clipboard.remove(entry.value)), true),
         ], keywords: [entry.value, entry.name ?? ''] }
     }) })
     return normalize([
         section(true), section(false),
-        ...(!data.length ? [action(messages.clipboard_empty, () => {})] : []),
-        ...(data.length ? [action(messages[data.some(entry => entry.kept) ? 'clipboard_clear' : 'clipboard_clear_all'], () => { clipboard.clear(); refreshClipboard(state) }, true)] : []),
-        action('＋ ' + messages.clipboard_add, () => editor(state), true),
+        ...(!data.length ? [action(labels.empty, () => {})] : []),
+        ...(data.length ? [action(labels[data.some(entry => entry.kept) ? 'clear' : 'clear_all'], () => { clipboard.clear(); redrawClipboard(state) }, true)] : []),
+        action('＋ ' + labels.add, () => clipboardEditor(state), true),
     ])
-}
-
-function openPaste(target, anchor, allowEmpty = false) {
-    if (!clipboard.clipboardSettings() || (!allowEmpty && !clipboard.entries().length)) return false
-    const marker = [...document.querySelectorAll('[data-warp-context-menu-config]')].find(marker => JSON.parse(marker.dataset.warpContextMenuConfig).clipboard?.enabled)
-    if (!marker) return false
-    close()
-    const config = JSON.parse(marker.dataset.warpContextMenuConfig)
-    const menu = el('div', 'fi-warp-contextmenu-menu'); menu.setAttribute('role', 'menu'); menu.setAttribute('aria-label', config.messages.clipboard_paste)
-    const state = { menu, context: { config, target }, kind: 'clipboard', scroll: openingScroll(target), sheet: mobile(), pasteTarget: target, selection: [target.selectionStart, target.selectionEnd], focus: target, anchor }
-    state.items = clipboardItems(state); active = state; document.body.append(menu); draw(state); menu.querySelector('input')?.focus()
-    return true
 }
 
 function tableItems(context, payload, state, scope) {
@@ -502,9 +467,9 @@ async function open(context, anchor, keyboard = false) {
     items = normalize(items)
     state.showSearch = shouldShowSearch(items)
     if (bulk) state.heading = selectedLabel(context.config.selectedCount, scope.getSelectedRecordsCount(), context.config.locale)
-    if (['record', 'bulk', 'page', 'entry'].includes(kind) && context.config.clipboardMenu !== false && clipboard.clipboardSettings()) {
-        if (kind === 'record' && context.row) copies.push({ type: 'item', label: context.config.messages.copy_row, run: () => copy([...context.row.querySelectorAll('td')].filter(cell => cell.getClientRects().length && !cell.querySelector('input[type=checkbox]') && !cell.querySelector('.fi-ta-actions')).map(cell => cell.innerText.trim()).join('\t'), state) })
-        copies.push({ type: 'submenu', clipboardMenu: true, label: context.config.messages.clipboard, items: clipboardItems(state) })
+    if (kind === 'record' && context.row && context.config.messages.copy_row) copies.push({ type: 'item', label: context.config.messages.copy_row, run: () => copy([...context.row.querySelectorAll('td')].filter(cell => cell.getClientRects().length && !cell.querySelector('input[type=checkbox]') && !cell.querySelector('.fi-ta-actions')).map(cell => cell.innerText.trim()).join('\t'), state) })
+    if (['record', 'bulk', 'page', 'entry'].includes(kind) && context.config.clipboardMenu !== false && window.WarpClipboard?.enabled()) {
+        copies.push({ type: 'submenu', clipboardMenu: true, label: window.WarpClipboard.messages["clipboard"], items: clipboardItems(state) })
     }
     items = normalize([...items, ...(copies.length ? [{ type: 'separator' }, ...copies] : []), ...(links.length ? [{ type: 'separator' }, ...links] : [])])
     state.items = items
@@ -532,11 +497,10 @@ function bootstrap(marker) {
     if (!document.getElementById('warp-context-menu-css')) {
         const link = document.createElement('link'); link.id = 'warp-context-menu-css'; link.rel = 'stylesheet'; link.href = config.css; document.head.append(link)
     }
-    clipboard.installClipboard()
     if (installed) return
     installed = true
     document.addEventListener('contextmenu', event => {
-        if (!event.shiftKey && clipboard.inputTarget(event.target) && openPaste(event.target, point(event))) { event.preventDefault(); return }
+        if (event.defaultPrevented) return
         if (nativeMenu(event)) return
         const context = targetFor(event.target)
         if (!context || isKnownEmpty(context)) return
@@ -555,19 +519,15 @@ function bootstrap(marker) {
         }
     }, { passive: true })
     document.addEventListener('keydown', event => {
-        if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key.toLowerCase() === 'v' && clipboard.inputTarget(event.target)) {
-            if (openPaste(event.target, clipboard.caretPoint(event.target), true)) event.preventDefault()
-            return
-        }
         if (active && event.key === 'Escape') {
             event.preventDefault()
-            if (active.query || active.editing) { draw(active); active.menu.querySelector('input,button')?.focus() } else close(true)
+            if (active.query) { draw(active); active.menu.querySelector('input,button')?.focus() } else close(true)
             return
         }
         if (active && !event.target.matches('input,textarea') && event.key.length === 1 && !event.ctrlKey && !event.metaKey && event.key !== ' ') {
             event.preventDefault(); draw(active, (active.query ?? '') + event.key); const input = active.menu.querySelector('input'); input?.focus(); return
         }
-        if (active && event.key === 'Tab') { if (!active.menu.querySelector('.fi-warp-contextmenu-menu-editor')) close(); return }
+        if (active && event.key === 'Tab') { close(); return }
         if (event.key !== 'ContextMenu' && !(event.shiftKey && event.key === 'F10')) return
         if (event.target.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"])')) return
         const focused = targetFor(event.target)

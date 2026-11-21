@@ -1,6 +1,6 @@
 ---
 name: warp-contextmenu-development
-description: Configure and test native Filament actions in Warp Context Menu (qalainau/filament-warp-contextmenu), including row, cell, selected-record and page menus, action search and clipboard history. Use when an installed Filament app needs context menu behavior.
+description: Configure and test native Filament actions in Warp Context Menu (qalainau/filament-warp-contextmenu), including row, cell, selected-record and page menus, action search. Use when an installed Filament app needs context menu behavior.
 ---
 
 # Warp Context Menu
@@ -17,7 +17,7 @@ use Qalainau\FilamentWarpContextMenu\WarpContextMenuPlugin;
 $panel->plugin(WarpContextMenuPlugin::make());
 ```
 
-Page menus are on by default; disable with `pages(false)`. Clipboard capture remains opt-in with `clipboard()`.
+Page menus are on by default; disable with `pages(false)`.
 
 ## Where to read more
 
@@ -32,7 +32,7 @@ Page menus are on by default; disable with `pages(false)`. Clipboard capture rem
 | Copy cells, rows, links or custom values | "Links and copying" |
 | Find nested actions and add keywords | "Search" |
 | Empty payloads, key limits and browser escape routes | "Browser menu and empty menus" |
-| Capture copies, kept text, storage and paste | "Clipboard" |
+| Optional Warp Clipboard integration | "Clipboard history（Warp Clipboard）" |
 | Keyboard shortcuts | "Keyboard" |
 | Phone sheets and Back navigation | "Touch" |
 | ARIA roles and focus | "Accessibility" |
@@ -98,21 +98,13 @@ Typing searches labels and `contextMenuKeywords()` across submenus; results show
 
 Cell copy and link actions are enabled by default on configured tables. Disable with `contextMenuCopyCell(false)` or `contextMenuLinks(false)`. A custom `contextMenuCopy()` closure receives the row record and copies its returned value instead of mounting. Hidden or unauthorized actions never enter the payload.
 
-## Clipboard
+## Clipboard history（Warp Clipboard）
 
-```php
-use Qalainau\FilamentWarpContextMenu\WarpContextMenuPlugin;
+Clipboard history is provided by the separate **Warp Clipboard** plugin. When installed and enabled, it adds a Clipboard submenu to row, selection, page and entry menus.
 
-$panel->plugin(WarpContextMenuPlugin::make()->clipboard(limit: 10, persist: false));
-```
+Use `$table->contextMenuClipboard(false)` to hide that submenu for a table. **Copy row** remains available without Warp Clipboard.
 
-`$table->contextMenuClipboard(false)` hides Copy row and Clipboard from that table’s row and cell menus. It does not disable panel copy capture or input paste. The boolean defaults to true and cannot enable clipboard when the panel has it disabled.
-
-Captures native panel copy events and clipboard writes, including Filament copyable values. It cannot automatically collect copies from another app. Recent values deduplicate and expire at the configured limit. Kept and manually entered multiline text do not count toward it; named values can be edited and removed. The editor uses Save and Cancel, and refuses blank text.
-
-The Clipboard submenu copies again and manages history. Input right-click and Ctrl+Shift+V / Command+Shift+V paste at the caret or replace a selection and emit `input` for Livewire. Empty input history preserves the browser menu; the keyboard picker can still add text. Password, disabled and read-only inputs do not offer paste.
-
-Storage is localStorage by default or sessionStorage with `persist: false`, per panel and signed-in user. Filament's logout form clears the active bucket. Clipboard history is not sent to the server by this feature. Choose persistence deliberately for personal data.
+See the [Warp Clipboard README](https://github.com/qalainau-labs/filament-warp-clipboard-docs) for setup and usage.
 
 ## Boundaries and tests
 

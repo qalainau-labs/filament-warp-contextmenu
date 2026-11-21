@@ -12,7 +12,19 @@ const rightClick = () => {
     return event
 }
 
+const clipboardMessages = { clipboard: 'Clipboard', empty: 'Nothing copied yet', clear_all: 'Remove all', clear: 'Remove recent', add: 'Add text', edit: 'Edit text', save: 'Keep', unsave: 'Stop keeping', delete: 'Remove', copy_again: 'Copy again', saved_section: 'Kept', recent_section: 'Recent', added_text: '自分で足した文字' }
+function installClipboard(entries = []) {
+    window.WarpClipboard = {
+        enabled: vi.fn(() => true), entries: vi.fn(() => entries), messages: clipboardMessages,
+        relativeTime: vi.fn(() => '3 minutes ago'), openEditor: vi.fn(),
+        keep: vi.fn(), remove: vi.fn(), clear: vi.fn(),
+    }
+    return window.WarpClipboard
+}
+const menuButton = label => [...document.querySelectorAll('[role=menuitem]')].find(node => node.getAttribute('aria-label') === label)
+
 beforeEach(async () => {
+    delete window.WarpClipboard
     vi.resetModules()
     // happy-dom 15 does not parse escaped colons in attribute selectors. Adapt
     // its selector parser; the real selectors are exercised by Playwright.
@@ -41,6 +53,7 @@ beforeEach(async () => {
 afterEach(() => {
     for (const args of documentListeners.mock.calls) document.removeEventListener(...args)
     for (const args of windowListeners.mock.calls) window.removeEventListener(...args)
+    delete window.WarpClipboard
     vi.restoreAllMocks()
 })
 
@@ -101,7 +114,8 @@ it('returns focus to an action when clearing the search of a small menu', async 
 
 it('keeps copy conveniences together before underlying link actions', async () => {
     const config = JSON.parse(marker.dataset.warpContextMenuConfig)
-    Object.assign(config, { copyCell: true, links: true, clipboard: { enabled: true, key: 'test-grouping', limit: 10, persist: true } })
+    Object.assign(config, { copyCell: true, links: true })
+    installClipboard()
     Object.assign(config.messages, { copy_row: 'Copy row', clipboard: 'Clipboard' })
     marker.dataset.warpContextMenuConfig = JSON.stringify(config)
     target.innerHTML = '<a href="https://example.com">Alice</a>'
@@ -122,7 +136,8 @@ it('forwards configured arguments and context from the rendered action', async (
 })
 
 it('excludes built-in copy, link and clipboard items from the search threshold', async () => {
-    marker.dataset.warpContextMenuConfig = JSON.stringify({ kind: 'record', copyCell: true, links: true, clipboard: { enabled: true, key: 'search-threshold', limit: 10, persist: false }, messages, css: 'data:text/css,' })
+    installClipboard()
+    marker.dataset.warpContextMenuConfig = JSON.stringify({ kind: 'record', copyCell: true, links: true, messages: { ...messages, copy_row: 'Copy row' }, css: 'data:text/css,' })
     factory().init.call({ $el: marker })
     target.innerHTML = '<a href="https://example.com">Alice</a>'
     target = target.querySelector('a')
@@ -182,22 +197,17 @@ it('keeps a mobile sheet open during background scrolling', async () => {
 
 
 it('hides Remove all for empty clipboard history and shows it for recent entries', async () => {
-    const config = JSON.parse(marker.dataset.warpContextMenuConfig)
-    Object.assign(config, { clipboard: { enabled: true, key: 'test-empty-history', limit: 10, persist: true } })
-    Object.assign(config.messages, { clipboard: 'Clipboard', clipboard_empty: 'Nothing copied yet', clipboard_clear_all: 'Remove all', clipboard_add: 'Add text' })
-    marker.dataset.warpContextMenuConfig = JSON.stringify(config)
-    for (const entries of [[], [{ value: 'Recent text', time: Date.now() }]]) {
-        sessionStorage.setItem(`${config.clipboard.key}:recent`, JSON.stringify(entries))
+    const clipboard = installClipboard()
+    for (const entries of [[], [{ value: 'Recent text', time: 123 }]]) {
+        clipboard.entries.mockReturnValue(entries)
         rightClick(); await flush()
-        const button = [...document.querySelectorAll('[role=menuitem]')].find(node => node.getAttribute('aria-label') === 'Clipboard')
-        button.click()
+        menuButton('Clipboard').click()
         const submenu = document.querySelector('.fi-warp-contextmenu-menu-submenu')
         expect(submenu.textContent.includes('Nothing copied yet')).toBe(entries.length === 0)
         expect(submenu.textContent.includes('Remove all')).toBe(entries.length > 0)
         expect(submenu.textContent).toContain('＋ Add text')
         document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
     }
-    sessionStorage.removeItem(`${config.clipboard.key}:recent`)
 })
 
 
@@ -228,22 +238,99 @@ it('keeps the record title out of desktop menus', async () => {
     expect(document.querySelector('[role=menu]').textContent).not.toContain('Alice title')
 })
 
-it('labels manually added clipboard text in the current locale and preserves copied sources', async () => {
-    const config = JSON.parse(marker.dataset.warpContextMenuConfig)
-    Object.assign(config, { clipboard: { enabled: true, key: 'test-added-text', limit: 10, persist: true } })
-    Object.assign(config.messages, { clipboard: 'Clipboard', clipboard_added_text: '自分で足した文字', clipboard_add: 'Add text' })
-    marker.dataset.warpContextMenuConfig = JSON.stringify(config)
-    const clipboard = await import('../../resources/js/clipboard.js')
-    clipboard.capture('Copied value', 'Invoice · Name')
-    clipboard.save('Typed value', 'Typed name')
-    expect(clipboard.entries()[0]).toMatchObject({ addedByUser: true, source: null })
+it('uses Clipboard messages, relative times and entry sources', async () => {
+    const clipboard = installClipboard([
+        { value: 'Typed value', name: 'Typed name', addedByUser: true, kept: true, time: 123 },
+        { value: 'Copied value', source: 'Invoice · Name', time: 456 },
+    ])
     rightClick(); await flush()
-    const button = [...document.querySelectorAll('[role=menuitem]')].find(node => node.getAttribute('aria-label') === 'Clipboard')
-    button.click()
+    menuButton('Clipboard').click()
     const submenu = document.querySelector('.fi-warp-contextmenu-menu-submenu')
-    expect(submenu.textContent).toContain('自分で足した文字')
-    expect(submenu.textContent).toContain('Invoice · Name')
-    localStorage.removeItem(config.clipboard.key)
+    expect(submenu.textContent).toContain('自分で足した文字 · 3 minutes ago')
+    expect(submenu.textContent).toContain('Invoice · Name · 3 minutes ago')
+    expect(menuButton('Typed name').querySelector('strong').textContent).toBe('Typed name')
+    expect(menuButton('Typed name').querySelector('.fi-warp-contextmenu-menu-preview').textContent).toBe('Typed value')
+    expect(clipboard.relativeTime).toHaveBeenCalledWith(123)
+})
+
+it('shows the Clipboard submenu only while the separate plugin is enabled and allowed for the table', async () => {
+    rightClick(); await flush()
+    expect(menuButton('Clipboard')).toBeUndefined()
+    const clipboard = installClipboard()
+    rightClick(); await flush()
+    expect(menuButton('Clipboard')).toBeDefined()
+    clipboard.enabled.mockReturnValue(false)
+    rightClick(); await flush()
+    expect(menuButton('Clipboard')).toBeUndefined()
+    clipboard.enabled.mockReturnValue(true)
+    const config = JSON.parse(marker.dataset.warpContextMenuConfig)
+    config.clipboardMenu = false
+    marker.dataset.warpContextMenuConfig = JSON.stringify(config)
+    rightClick(); await flush()
+    expect(menuButton('Clipboard')).toBeUndefined()
+})
+
+it('copies a row without Warp Clipboard even when its submenu is disabled', async () => {
+    const config = JSON.parse(marker.dataset.warpContextMenuConfig)
+    config.clipboardMenu = false
+    config.messages.copy_row = 'Copy row'
+    marker.dataset.warpContextMenuConfig = JSON.stringify(config)
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } })
+    vi.spyOn(target.closest('td'), 'getClientRects').mockReturnValue([{}])
+    target = target.closest('td')
+    target.innerText = 'Alice'
+    rightClick(); await flush()
+    menuButton('Copy row').click(); await flush()
+    expect(writeText).toHaveBeenCalledExactlyOnceWith('Alice')
+})
+
+it('closes the menu before opening the Clipboard editor to add or edit text', async () => {
+    const entry = { value: 'Saved value', kept: true, time: 123 }
+    const clipboard = installClipboard([entry])
+    clipboard.openEditor.mockImplementation(() => expect(document.querySelector('[role=menu]')).toBeNull())
+    rightClick(); await flush()
+    menuButton('Clipboard').click()
+    menuButton('＋ Add text').click()
+    expect(clipboard.openEditor).toHaveBeenLastCalledWith({ x: 80, y: 90 }, null)
+    rightClick(); await flush()
+    menuButton('Clipboard').click()
+    menuButton('Saved value').click()
+    menuButton('Edit text').click()
+    expect(clipboard.openEditor).toHaveBeenLastCalledWith({ x: 80, y: 90 }, entry)
+})
+
+it('redraws Clipboard entries after keeping, removing and clearing them', async () => {
+    const entry = { value: 'Recent value', time: 123 }
+    const clipboard = installClipboard([entry])
+    clipboard.keep.mockImplementation((value, kept) => { entry.kept = kept })
+    clipboard.remove.mockImplementation(() => clipboard.entries.mockReturnValue([]))
+    clipboard.clear.mockImplementation(() => clipboard.entries.mockReturnValue([]))
+    rightClick(); await flush()
+    menuButton('Clipboard').click(); menuButton('Recent value').click(); menuButton('Keep').click()
+    expect(clipboard.keep).toHaveBeenCalledWith('Recent value', true)
+    menuButton('Clipboard').click(); menuButton('Recent value').click()
+    expect(menuButton('Stop keeping')).toBeDefined()
+    menuButton('Remove').click()
+    expect(clipboard.remove).toHaveBeenCalledWith('Recent value')
+    menuButton('Clipboard').click()
+    expect(menuButton('Nothing copied yet')).toBeDefined()
+    clipboard.entries.mockReturnValue([{ value: 'Another', time: 456 }])
+    rightClick(); await flush()
+    menuButton('Clipboard').click(); menuButton('Remove all').click()
+    expect(clipboard.clear).toHaveBeenCalledOnce()
+    menuButton('Clipboard').click()
+    expect(menuButton('Nothing copied yet')).toBeDefined()
+})
+
+it('does not open a menu when a capture listener already prevented contextmenu', async () => {
+    const prevent = event => event.preventDefault()
+    document.addEventListener('contextmenu', prevent, true)
+    expect(rightClick().defaultPrevented).toBe(true)
+    await flush()
+    expect(component.$call).not.toHaveBeenCalled()
+    expect(document.querySelector('[role=menu]')).toBeNull()
+    document.removeEventListener('contextmenu', prevent, true)
 })
 
 it('keeps nested widget entry actions on the widget and page header actions on the page', async () => {

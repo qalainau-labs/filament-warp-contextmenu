@@ -3,7 +3,6 @@
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkAction;
-use Filament\Facades\Filament;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\View\ViewException;
@@ -259,19 +258,15 @@ it('only renders explicitly configured group icons', function () {
     });
 });
 
-it('controls table clipboard menus independently of panel capture and paste', function () {
-    $plugin = Filament::getCurrentPanel()->getPlugin('warp-contextmenu')->clipboard();
+it('controls table clipboard menus independently of page menus', function () {
     $table = livewire(MenuTable::class)->instance()->getTable();
-    $panelClipboard = Menus::clientConfig('page')['clipboard'];
-    expect($panelClipboard['enabled'])->toBeTrue();
     expect(Menus::clientConfig('record', $table)['clipboardMenu'])->toBeTrue();
     expect($table->contextMenuClipboard(false))->toBe($table);
-    expect(Menus::clientConfig('record', $table))->toMatchArray(['clipboardMenu' => false, 'clipboard' => $panelClipboard]);
-    expect(Menus::clientConfig('page')['clipboard'])->toBe($panelClipboard);
+    expect(Menus::clientConfig('record', $table)['clipboardMenu'])->toBeFalse();
+    expect(Menus::clientConfig('page')['clipboardMenu'])->toBeTrue();
+    expect(Menus::clientConfig('record', $table))->not->toHaveKeys(['clipboard', 'clipboardButtons']);
     $table->contextMenuClipboard();
     expect(Menus::clientConfig('record', $table)['clipboardMenu'])->toBeTrue();
-    $plugin->clipboard(false);
-    expect(Menus::clientConfig('record', $table)['clipboard']['enabled'])->toBeFalse();
 });
 
 it('includes the configured record title and no title without one', function () {

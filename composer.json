@@ -1,6 +1,6 @@
 {
     "name": "qalainau/filament-warp-contextmenu",
-    "description": "Native Filament context menus for rows, cells, selections and pages, with action search, clipboard history, keyboard and touch support.",
+    "description": "Native Filament context menus for rows, cells, selections and pages, with action search, keyboard and touch support.",
     "keywords": [
         "filament",
         "filamentphp",
@@ -10,7 +10,6 @@
         "table",
         "actions",
         "bulk-actions",
-        "clipboard",
         "search",
         "keyboard",
         "touch",

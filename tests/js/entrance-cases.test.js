@@ -139,7 +139,7 @@ it.each(combinations)('$entrance / $kind follows $expected for an empty menu', a
     marker.dataset.warpContextMenuConfig = JSON.stringify({
         kind: ['entry', 'page'].includes(kind) ? 'page' : 'record',
         headers: true, tableMenu: true, bulk: kind === 'bulk',
-        copyCell: false, links: false, clipboardMenu: false, clipboard: { enabled: false },
+        copyCell: false, links: false, clipboardMenu: false,
         selectedCount: ':count selected', messages, css: 'data:text/css,',
     })
     const component = { $call: vi.fn(async (method, keys, requestKind) => fixture.reply(requestKind)) }

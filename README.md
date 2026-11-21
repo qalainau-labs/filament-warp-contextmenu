@@ -1,6 +1,6 @@
 # Warp Context Menu
 
-Right-click a Filament table row, cell, selection or page to use native Filament actions, search them, and collect text in a reusable clipboard.
+Right-click a Filament table row, cell, selection or page to use native Filament actions and search them.
 
 <a href="https://demo.warpui.com/contextmenu"><img src="art/live-demo.png" alt="Try the live demo: demo.warpui.com/contextmenu" width="592"></a>
 
@@ -12,7 +12,7 @@ Right-click a Filament table row, cell, selection or page to use native Filament
 - [Installation](#installation)
   - [AI coding assistants (Laravel Boost)](#ai-coding-assistants-laravel-boost)
 - [Usage](#usage)
-- [Clipboard](#clipboard)
+- [Clipboard history (Warp Clipboard)](#clipboard-history-warp-clipboard)
 - [Keyboard](#keyboard)
 - [Touch](#touch)
 - [Accessibility](#accessibility)
@@ -33,7 +33,6 @@ Right-click a Filament table row, cell, selection or page to use native Filament
 - **Cell and page menus.** Add actions to any table column; reuse a page's header actions and navigation across page chrome without a trait.
 - **Links and copying.** Copy cell text, a row as tab-separated columns, a link address, or a value provided by an action. Open underlying links in a new tab.
 - **Search.** Type to filter, including actions inside submenus, with paths in the results and optional extra keywords.
-- **Clipboard history and kept text.** Collect copies in the panel, save reusable templates and paste into form fields.
 - **Keyboard and touch.** ContextMenu key, Shift+F10, arrow navigation, visible shortcuts, and long press. Phone menus use a bottom sheet with Back navigation.
 - **Light and dark mode, RTL and ten languages.** Uses Filament's colors and icons.
 - **Tenant-aware lookup.** Records are resolved again through the table query; hidden or unauthorized action names and labels are not sent to the browser.
@@ -66,7 +65,7 @@ No migration, custom column class or Livewire trait is required. After updating 
 
 ### AI coding assistants (Laravel Boost)
 
-Warp Context Menu ships instructions for AI coding assistants such as Claude Code, Cursor and Codex. If your app uses [Laravel Boost](https://laravel.com/docs/boost), the assistant learns to reuse Filament actions, configure search and clipboard history, and test menu payloads.
+Warp Context Menu ships instructions for AI coding assistants such as Claude Code, Cursor and Codex. If your app uses [Laravel Boost](https://laravel.com/docs/boost), the assistant learns to reuse Filament actions, configure action search, and test menu payloads.
 
 - **Guidelines** (`resources/boost/guidelines/core.md`): a short summary Boost adds to `CLAUDE.md`, `AGENTS.md` and other agent files. It points to this README in `vendor/`, so assistants read the documentation of the installed version.
 - **Skill** `warp-contextmenu-development` (`resources/boost/skills/`): examples for each area and tests, loaded when the assistant works on Context Menu.
@@ -219,7 +218,7 @@ The two boolean settings default to true. Table surfaces never fall back to the 
 
 Registering `WarpContextMenuPlugin::make()` enables page menus by default, everywhere outside tables: headers, form labels, infolists, widgets, sidebars, topbars and empty space. Disable with `WarpContextMenuPlugin::make()->pages(false)`.
 
-Menus include the page’s visible, authorized header actions, Copy link to this page, Reload page, Back, Forward, Copy selected text when text is selected, and the Clipboard submenu when `clipboard()` is enabled. Back uses the same translated label as a sheet’s submenu navigation. Inputs keep their native menu or the clipboard paste picker.
+Menus include the page’s visible, authorized header actions, Copy link to this page, Reload page, Back, Forward, Copy selected text when text is selected, and the Clipboard submenu when Warp Clipboard is installed and enabled. Back uses the same translated label as a sheet’s submenu navigation. Inputs keep their native menu (or the Warp Clipboard paste picker when it is installed).
 
 For a separate action list, define this method on the page (no trait):
 
@@ -265,7 +264,7 @@ Action::make('copyNumber')
     ->contextMenuCopy(fn (Invoice $record): string => $record->number);
 ```
 
-These copies also write to the operating system clipboard. A clipboard permission failure is announced. With clipboard history enabled, **Copy row** joins the visible data cells with tabs, so you can paste into a spreadsheet; selection and action cells are omitted.
+These copies also write to the operating system clipboard. A clipboard permission failure is announced. **Copy row** joins the visible data cells with tabs, so you can paste into a spreadsheet; selection and action cells are omitted.
 
 ### Search
 
@@ -275,66 +274,17 @@ Start typing in an open menu to search. Menus containing at least eight leaf act
 
 ### Browser menu and empty menus
 
-Shift + right-click always leaves the browser's menu available. Input, textarea, select and editable content keep their native menus. Selected text keeps its native menu on tables; page menus offer Copy selected text. Clipboard-enabled text inputs are the exception described below. A row with no available actions or enabled conveniences falls back to the browser menu once its empty payload is known. On the first asynchronous lookup an empty result dismisses the loading menu; use Shift + right-click to explicitly open the browser menu.
+Shift + right-click always leaves the browser's menu available. Input, textarea, select and editable content keep their native menus. Selected text keeps its native menu on tables; page menus offer Copy selected text. A row with no available actions or enabled conveniences falls back to the browser menu once its empty payload is known. On the first asynchronous lookup an empty result dismisses the loading menu; use Shift + right-click to explicitly open the browser menu.
 
 Menus for up to **100 record keys** are prefetched in one request when the pointer enters the table. Further keys are truncated on the server. A Livewire update invalidates the cached menus. Hidden and unauthorized actions, including their names and labels, are omitted from the payload.
 
-## Clipboard
+## Clipboard history (Warp Clipboard)
 
-![Clipboard history and reusable text](art/screenshot-clipboard.png)
+Clipboard history is provided by the separate **Warp Clipboard** plugin. When installed and enabled, it adds a Clipboard submenu to row, selection, page and entry menus.
 
-Clipboard history is opt-in:
+Use `$table->contextMenuClipboard(false)` to hide that submenu for a table. **Copy row** remains available without Warp Clipboard.
 
-```php
-use Qalainau\FilamentWarpContextMenu\WarpContextMenuPlugin;
-
-$panel->plugin(WarpContextMenuPlugin::make()->clipboard());
-
-// Or keep saved text only for the lifetime of the browser tab too:
-$panel->plugin(WarpContextMenuPlugin::make()->clipboard(limit: 10, persist: false));
-```
-
-| Argument | Default | Behavior |
-| --- | --- | --- |
-| `bool $enabled` | `true` | Enable or disable clipboard capture and pickers. |
-| `int $limit` | `10` | Maximum recent values; negative limits become zero. Kept values do not count. |
-| `bool $persist` | `true` | Saved text uses `localStorage`; `false` keeps it in `sessionStorage`. Recent copies always use `sessionStorage`. |
-
-Disable **Copy row** and **Clipboard ›** for one table's row and cell menus while keeping panel copy capture and input paste enabled:
-
-```php
-$table->contextMenuClipboard(false); // bool $condition = true
-```
-
-Calling `contextMenuClipboard()` restores these menu entries when the panel's `clipboard()` is enabled. Cell copy and link actions keep their own settings.
-
-Copies inside the panel enter history: Ctrl+C / ⌘C, the browser's Copy command, Filament `copyable()` fields using `navigator.clipboard.writeText`, and this plugin's cell, row, link and custom copy actions. Capturing the native copy event and wrapping clipboard writes does not read the operating system clipboard. Copies from Excel, email or another app cannot be collected automatically: browsers require explicit user permission and interaction to read that clipboard.
-
-History stores the text, its source when known (for example, an invoice number and column label; otherwise the page title), and its copy time. Source and localized relative time appear below the value. Copying the same value moves it to the top. Whitespace-only values and entries longer than 5,000 characters are ignored. Older recent copies fall out after ten values by default. **Keep** saves an item until you stop keeping or remove it; kept items appear first and do not consume the recent limit. **Remove all except kept items** clears only the recent values.
-
-Choose **＋ Add text** to type a multiline value and an optional name. **Save** is disabled while the text is empty or whitespace. **Cancel** or Escape returns to the list. Named kept items show the name in bold and a one-line preview of the text. You can edit the name and value or remove the item. Searching a clipboard list matches both the name and text.
-
-There are three ways in:
-
-1. Right-click an editable text input or textarea to pick a value and paste it. Empty history keeps the browser menu. Shift + right-click always opens that menu.
-2. Press Ctrl+Shift+V (⌘⇧V on Mac) in a text input to open the picker near the caret, including when history is empty so you can add text.
-3. Open **Clipboard ›** in a row, cell or page menu to copy a value again, keep it, edit kept text, or remove values.
-
-Pasting replaces the selected range or inserts at the caret and dispatches an `input` event for Livewire and Alpine. Disabled and read-only fields do not offer paste. Password fields do not capture copies or offer a picker, including Filament revealable password fields while revealed (identified by bindings such as `x-bind:type` or `:type` containing `password`). Fields with `autocomplete="one-time-code"`, `"new-password"` or `"current-password"` are also excluded.
-
-Add `data-warp-no-clipboard` to an element or a containing region to exclude sensitive copies and the input picker:
-
-```html
-<div data-warp-no-clipboard>
-    <input type="text" name="private_reference">
-</div>
-```
-
-Native copies check the event target and focused element; programmatic `navigator.clipboard.writeText()` calls check the element focused when the call starts. These exclusions prevent history capture without preventing the system clipboard write.
-
-Values stay in the browser and are never sent to the server by the clipboard feature. **Recent** copies always use `sessionStorage` and disappear when the tab closes. Only values explicitly saved with **Keep** or **＋ Add text** use `localStorage` by default. Logging out preserves this intentionally saved text: the same user can access it after logging in again. Choose `persist: false` to keep saved text in `sessionStorage` too, so closing the tab removes both lists.
-
-Storage keys hash the panel, signed-in user and current tenant. Another user's or tenant's bucket is not read. Capture and pickers are disabled without a current panel or signed-in user. Browser storage is not encrypted, and standard browser storage restrictions can prevent saving history.
+See the [Warp Clipboard README](https://github.com/qalainau-labs/filament-warp-clipboard-docs) for setup and usage.
 
 ## Keyboard
 
@@ -346,20 +296,19 @@ Storage keys hash the panel, signed-in user and current tenant. Another user's o
 | Home / End | First / last item. |
 | → / ← | Open / leave a submenu; reversed in RTL. |
 | Enter / Space | Activate the focused item; Enter in search runs the first result. |
-| Escape | Leave a submenu, cancel the editor, clear a search, or close and restore focus. |
-| Tab | Close the menu; in the text editor, move between its fields and buttons. |
-| Ctrl+Shift+V / ⌘⇧V | Open clipboard history in a supported input. |
+| Escape | Leave a submenu, clear a search, or close and restore focus. |
+| Tab | Close the menu. |
 | Shift + right-click | Open the browser menu. |
 
 Filament `keyBindings()` are displayed alongside their actions, using Mac or Ctrl notation as appropriate.
 
 ## Touch
 
-Hold a row for 500ms to open its menu. Moving more than 10px or scrolling cancels the hold. Below 640px the menu becomes a full-width bottom sheet with larger touch targets. Opening a submenu replaces the current level inside the sheet; **‹ Back** returns to the parent. Search and clipboard lists remain inside the sheet. Menus close on outside interaction, outside scrolling, resizing or navigation.
+Hold a row for 500ms to open its menu. Moving more than 10px or scrolling cancels the hold. Below 640px the menu becomes a full-width bottom sheet with larger touch targets. Opening a submenu replaces the current level inside the sheet; **‹ Back** returns to the parent. Search remains inside the sheet. Menus close on outside interaction, outside scrolling, resizing or navigation.
 
 ## Accessibility
 
-Menus use WAI-ARIA `menu`, `menuitem`, `menuitemcheckbox`, `separator` and `group` roles. Submenu triggers expose `aria-haspopup` and `aria-expanded`; disabled and checked states use `aria-disabled` and `aria-checked`. Search and editor fields have labels. Copy feedback uses a `status` live region. Keyboard navigation restores the original focus when the menu closes. Reduced-motion preferences disable the opening animation.
+Menus use WAI-ARIA `menu`, `menuitem`, `menuitemcheckbox`, `separator` and `group` roles. Submenu triggers expose `aria-haspopup` and `aria-expanded`; disabled and checked states use `aria-disabled` and `aria-checked`. Search fields have labels. Copy feedback uses a `status` live region. Keyboard navigation restores the original focus when the menu closes. Reduced-motion preferences disable the opening animation.
 
 ## Security
 
@@ -367,11 +316,11 @@ Record keys received from the browser are looked up again through Filament's tab
 
 Visibility and authorization are evaluated before serialization. Hidden and unauthorized action names and labels are not disclosed. Clicking an executable action goes through Filament's normal mounting and authorization checks; a menu payload is not permission to run an action. Custom copy actions also respect a model's `view` policy when it defines one. `contextMenuCopy()` values are prefetched to the browser of anyone allowed to view the row as soon as the pointer enters it; do not use this API for secrets.
 
-Labels, tooltips, clipboard text and search paths are rendered as text. Only icons generated by Filament are inserted as SVG markup. Do not pass user-supplied data to `icon()`. Navigation filters unsafe URL schemes. Clipboard history itself is browser storage, not encrypted storage; the clipboard feature does not send it to the server.
+Labels, tooltips, copied text and search paths are rendered as text. Only icons generated by Filament are inserted as SVG markup. Do not pass user-supplied data to `icon()`. Navigation filters unsafe URL schemes.
 
 ## Translations
 
-English, Japanese, German, French, Spanish, Italian, Brazilian Portuguese, Korean, simplified Chinese and traditional Chinese are included. The menu follows the application's locale; relative clipboard times use `Intl.RelativeTimeFormat` in that locale. Labels you write in your own actions remain yours to translate.
+English, Japanese, German, French, Spanish, Italian, Brazilian Portuguese, Korean, simplified Chinese and traditional Chinese are included. The menu follows the application's locale. Labels you write in your own actions remain yours to translate.
 
 ```bash
 php artisan vendor:publish --tag=filament-warp-contextmenu-translations

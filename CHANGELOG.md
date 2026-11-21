@@ -11,7 +11,7 @@ All notable changes to `qalainau/filament-warp-contextmenu` are documented here.
 - Ten-language surface labels, PHPStan consumer coverage and surface payload, routing and browser regression tests.
 - Compatibility with Filament 5.9's legacy null record-title resolver; browser fixtures with a defined password-reveal scope and paths resolved from each script.
 
-- `Table::contextMenuClipboard(bool $condition = true)` to hide Copy row and Clipboard from a table's row and cell menus while preserving panel capture and input paste.
+- `Table::contextMenuClipboard(bool $condition = true)` to hide the optional Warp Clipboard submenu for a table.
 
 - Row context menus using existing Filament `recordActions()` or a separate list of native actions, evaluated per record for visibility, authorization, labels, icons, colors, badges and disabled reasons.
 - `ActionGroup` submenus and labeled sections, explicit separators, checked actions and displayed keyboard shortcuts.
@@ -19,8 +19,6 @@ All notable changes to `qalainau/filament-warp-contextmenu` are documented here.
 - Cell menus on standard table columns and optional page menus from header actions or `getContextMenuActions()`.
 - Copy cell text, tab-separated visible row values, link addresses and custom action values; open underlying links in a new tab.
 - Search across submenu actions with flattened result paths, case and accent folding, extra action keywords and empty-result feedback.
-- Opt-in clipboard capture for panel copies, bounded recent history, kept values, named multiline text with add/edit/remove controls, source labels and localized relative times.
-- Clipboard paste through input right-click, Ctrl+Shift+V / Command+Shift+V, and a Clipboard submenu; Livewire-compatible input events, per-user and panel browser storage, session-only storage and logout cleanup.
 - Keyboard opening and navigation, focus restoration, native browser menu escape routes, touch long press, and mobile bottom sheets with submenu Back navigation.
 - Filament styling, light and dark modes, RTL layout, WAI-ARIA menu states, copy announcements and ten interface languages.
 - Tenant-scoped table record lookup, hidden-action payload filtering, Filament action mounting and a 100-key request limit.

@@ -9,7 +9,7 @@
 
 .fi-warp-contextmenu-menu-item[data-custom-color]{color:var(--wcm-color-600)}.dark .fi-warp-contextmenu-menu-item[data-custom-color]{color:var(--wcm-color-400)}
 
-.fi-warp-contextmenu-menu-label{min-width:0}.fi-warp-contextmenu-menu-detail{display:block;font-size:.75rem;color:var(--gray-500,#6b7280);white-space:normal}.fi-warp-contextmenu-menu-search,.fi-warp-contextmenu-menu-editor input,.fi-warp-contextmenu-menu-editor textarea{display:block;width:100%;padding:.5rem;border:1px solid #8885;border-radius:.375rem;background:transparent;color:inherit}.fi-warp-contextmenu-menu-preview{display:block;max-width:22rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.75rem}.fi-warp-contextmenu-menu-editor{padding:.5rem}.fi-warp-contextmenu-menu-editor textarea{min-height:6rem}.fi-warp-contextmenu-menu-submenu{overflow-x:hidden}
+.fi-warp-contextmenu-menu-label{min-width:0}.fi-warp-contextmenu-menu-detail{display:block;font-size:.75rem;color:var(--gray-500,#6b7280);white-space:normal}.fi-warp-contextmenu-menu-search{display:block;width:100%;padding:.5rem;border:1px solid #8885;border-radius:.375rem;background:transparent;color:inherit}.fi-warp-contextmenu-menu-preview{display:block;max-width:22rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.75rem}.fi-warp-contextmenu-menu-submenu{overflow-x:hidden}
 .dark .fi-warp-contextmenu-menu-item[data-color=primary]{color:var(--primary-400,#34d399)}
 .dark .fi-warp-contextmenu-menu-item[data-color=danger]{color:var(--danger-400,#f87171)}
 .dark .fi-warp-contextmenu-menu-item[data-color=success]{color:var(--success-400,#4ade80)}
@@ -20,5 +20,4 @@
 
 .fi-warp-contextmenu-menu-label{overflow:hidden;text-overflow:ellipsis}
 
-.fi-warp-contextmenu-menu-editor{display:flex;flex-direction:column;gap:1rem}.fi-warp-contextmenu-menu-editor label{display:flex;flex-direction:column;gap:.375rem}.fi-warp-contextmenu-menu-editor-actions{display:flex;align-items:center;gap:.5rem}.fi-warp-contextmenu-menu-editor button:disabled{opacity:.5;cursor:default}
 @media(max-width:639px){.fi-warp-contextmenu-menu{box-sizing:border-box}.fi-warp-contextmenu-menu-has-submenu>:not(.fi-warp-contextmenu-menu-submenu){display:none}.fi-warp-contextmenu-menu .fi-warp-contextmenu-menu-submenu{position:static;width:100%;min-width:0;max-width:100%;max-height:none!important;padding:0;box-shadow:none;border-radius:0;animation:none}.fi-warp-contextmenu-menu-preview{max-width:100%}.fi-warp-contextmenu-menu-back{font-weight:600;border-bottom:1px solid #8883;border-radius:0;margin-bottom:.375rem}.fi-warp-contextmenu-menu-detail{overflow-wrap:anywhere}}
