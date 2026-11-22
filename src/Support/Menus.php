@@ -94,13 +94,16 @@ final class Menus
         if ($extra === []) {
             return static function (): void {};
         }
-        $set = function (array $actions): void {
-            $this->recordActions = $actions;
-        };
         $original = (fn (): array => $this->recordActions)->call($table);
-        $set->call($table, [...$original, ...$extra]);
+        (function (array $actions): void {
+            $this->recordActions = $actions;
+        })->call($table, [...$original, ...$extra]);
 
-        return static fn () => $set->call($table, $original);
+        return static function () use ($table, $original): void {
+            (function (array $actions): void {
+                $this->recordActions = $actions;
+            })->call($table, $original);
+        };
     }
 
     public static function bulkFor(Table $table): array

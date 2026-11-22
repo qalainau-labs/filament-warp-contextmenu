@@ -98,6 +98,10 @@ it('does not duplicate native record actions while resolving a mirrored menu', f
 });
 
 it('rejects a header action with a record key when it is absent from the menu', function () {
+    // Filament 5.12 added this check; older versions mount any table action with a record key.
+    if (version_compare((string) \Composer\InstalledVersions::getVersion('filament/tables'), '5.12.0', '<')) {
+        $this->markTestSkipped('Filament before 5.12 does not check record actions.');
+    }
     MenuTable::$configure = fn ($table) => $table->headerActions([
         Action::make('headerOnly')->action(fn () => Customer::query()->whereKey($this->record->id)->update(['name' => 'Header executed'])),
     ]);
