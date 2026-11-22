@@ -53,6 +53,56 @@ final class Menus
         return $prepared;
     }
 
+    /**
+     * Filament 5.12 only resolves a table action with a record when it is one of the table's record actions
+     * (or a column's action). Menu-only and cell-menu actions stay out of the visible actions column, so they
+     * are added to the record actions only while Filament resolves them, and removed again afterwards.
+     *
+     * @template T
+     *
+     * @param  \Closure(): T  $callback
+     * @return T
+     */
+    public static function whileResolvable(Component $component, \Closure $callback): mixed
+    {
+        $restore = self::makeResolvable($component);
+        try {
+            return $callback();
+        } finally {
+            $restore();
+        }
+    }
+
+    /** Add the menu's record and cell actions to the record actions; the returned closure puts the list back. */
+    public static function makeResolvable(Component $component): \Closure
+    {
+        if (! $component instanceof HasTable || ! self::enabled($table = $component->getTable())) {
+            return static function (): void {};
+        }
+        $prepared = self::prepare($table);
+        $flat = $table->getFlatRecordActions();
+        $extra = [];
+        foreach ([$prepared['record'], ...array_values($prepared['cells'])] as $actions) {
+            foreach ($actions as $action) {
+                foreach ($action instanceof ActionGroup ? $action->getFlatActions() : [$action] as $item) {
+                    if ($item instanceof Action && ! in_array($item, $flat, true) && ! in_array($item, $extra, true)) {
+                        $extra[] = $item;
+                    }
+                }
+            }
+        }
+        if ($extra === []) {
+            return static function (): void {};
+        }
+        $set = function (array $actions): void {
+            $this->recordActions = $actions;
+        };
+        $original = (fn (): array => $this->recordActions)->call($table);
+        $set->call($table, [...$original, ...$extra]);
+
+        return static fn () => $set->call($table, $original);
+    }
+
     public static function bulkFor(Table $table): array
     {
         if (($actions = Macros::get($table, 'resolvedBulk')) !== null) {

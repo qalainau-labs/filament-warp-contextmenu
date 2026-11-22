@@ -6,6 +6,7 @@ use Filament\Actions\BulkAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\View\ViewException;
+use Livewire\Features\SupportTesting\Testable;
 use Qalainau\FilamentWarpContextMenu\ContextMenu;
 use Qalainau\FilamentWarpContextMenu\Support\Menus;
 use Qalainau\FilamentWarpContextMenu\Tests\Fixtures\Customer;
@@ -21,6 +22,97 @@ beforeEach(function () {
     MenuTable::$configure = null;
 });
 afterEach(fn () => MenuTable::$configure = null);
+
+function assertMenuOnlyActionStaysOutOfRows(Testable $test, string $label): void
+{
+    expect($test->instance()->getTable()->getRecordActions())->toBe([]);
+    $document = new DOMDocument;
+    $document->loadHTML($test->html(), LIBXML_NOERROR | LIBXML_NOWARNING);
+    $xpath = new DOMXPath($document);
+    $rows = $xpath->query('//table[contains(concat(" ", normalize-space(@class), " "), " fi-ta-table ")]/tbody');
+    expect($rows->length)->toBe(1);
+    expect($xpath->query('.//*[contains(concat(" ", normalize-space(@class), " "), " fi-ta-actions ")]', $rows->item(0))->length)->toBe(0);
+    expect($rows->item(0)->textContent)->not->toContain($label);
+}
+
+it('keeps menu-only record actions out of rows after mounting and confirming', function () {
+    MenuTable::$configure = fn ($table) => $table->contextMenu([
+        Action::make('menuConfirm')->label('Menu-only confirmation')->requiresConfirmation()
+            ->action(fn ($record) => $record->update(['name' => 'Menu confirmed'])),
+    ]);
+    $test = livewire(MenuTable::class)->call('mountAction', 'menuConfirm', [], ['table' => true, 'recordKey' => (string) $this->record->id])
+        ->assertSet('mountedActions.0.name', 'menuConfirm')
+        ->assertDispatched('sync-action-modals', fn ($event, $params) => $params['newActionNestingIndex'] === 0);
+    expect($this->record->fresh()->name)->toBe('Alice');
+    assertMenuOnlyActionStaysOutOfRows($test, 'Menu-only confirmation');
+
+    $test->call('callMountedAction')->assertSet('mountedActions', []);
+    expect($this->record->fresh()->name)->toBe('Menu confirmed');
+    assertMenuOnlyActionStaysOutOfRows($test, 'Menu-only confirmation');
+});
+
+it('keeps cell-only actions out of rows after mounting and confirming', function () {
+    MenuTable::$configure = fn ($table) => Table::make($table->getLivewire())->query(Customer::query())->columns([
+        TextColumn::make('name')->contextMenu([
+            Action::make('cellConfirm')->label('Cell-only confirmation')->requiresConfirmation()
+                ->action(fn ($record) => $record->update(['name' => 'Cell confirmed'])),
+        ]),
+    ]);
+    $test = livewire(MenuTable::class)->call('mountAction', 'cellConfirm', [], ['table' => true, 'recordKey' => (string) $this->record->id])
+        ->assertSet('mountedActions.0.name', 'cellConfirm')
+        ->assertDispatched('sync-action-modals', fn ($event, $params) => $params['newActionNestingIndex'] === 0);
+    expect($this->record->fresh()->name)->toBe('Alice');
+    assertMenuOnlyActionStaysOutOfRows($test, 'Cell-only confirmation');
+
+    $test->call('callMountedAction')->assertSet('mountedActions', []);
+    expect($this->record->fresh()->name)->toBe('Cell confirmed');
+    assertMenuOnlyActionStaysOutOfRows($test, 'Cell-only confirmation');
+});
+
+it('does not duplicate native record actions while resolving a mirrored menu', function () {
+    $counts = [];
+    $observe = function ($livewire) use (&$counts): void {
+        $table = $livewire->getTable();
+        $counts[] = [count($table->getFlatRecordActions()), count($table->getRecordActions())];
+    };
+    MenuTable::$configure = fn ($table) => $table->recordActions([
+        Action::make('nativeConfirm')->label('Native confirmation')->requiresConfirmation()->mountUsing($observe)
+            ->action(function ($record, $livewire) use ($observe): void {
+                $observe($livewire);
+                $record->update(['name' => 'Native confirmed']);
+            }),
+    ])->contextMenu();
+    $test = livewire(MenuTable::class);
+    expect($test->instance()->getTable()->getFlatRecordActions())->toHaveCount(1);
+    $test->call('mountAction', 'nativeConfirm', [], ['table' => true, 'recordKey' => (string) $this->record->id])
+        ->assertSet('mountedActions.0.name', 'nativeConfirm')->assertSee('Native confirmation');
+    expect($this->record->fresh()->name)->toBe('Alice');
+    expect($test->instance()->getTable()->getFlatRecordActions())->toHaveCount(1);
+    expect($test->instance()->getTable()->getRecordActions())->toHaveCount(1);
+
+    $test->call('callMountedAction')->assertSet('mountedActions', []);
+    expect($this->record->fresh()->name)->toBe('Native confirmed');
+    expect($test->instance()->getTable()->getFlatRecordActions())->toHaveCount(1);
+    expect($test->instance()->getTable()->getRecordActions())->toHaveCount(1);
+    expect($counts)->toBe([[1, 1], [1, 1]]);
+});
+
+it('rejects a header action with a record key when it is absent from the menu', function () {
+    MenuTable::$configure = fn ($table) => $table->headerActions([
+        Action::make('headerOnly')->action(fn () => Customer::query()->whereKey($this->record->id)->update(['name' => 'Header executed'])),
+    ]);
+    $test = livewire(MenuTable::class)->call('__warpContextMenu', [$this->record->id])
+        ->assertReturned(fn ($data) => array_column($data[$this->record->id]['items'], 'name') === ['rename']);
+    expect($test->instance()->getTable()->getAction('headerOnly')->getName())->toBe('headerOnly');
+    $test->call('mountAction', 'headerOnly', [], ['table' => true, 'recordKey' => (string) $this->record->id])
+        ->assertSet('mountedActions', []);
+    expect($this->record->fresh()->name)->toBe('Alice');
+    $test->call('callMountedAction')->assertSet('mountedActions', []);
+    expect($this->record->fresh()->name)->toBe('Alice');
+
+    $test->call('mountAction', 'headerOnly', [], ['table' => true]);
+    expect($this->record->fresh()->name)->toBe('Header executed');
+});
 
 it('evaluates all action properties for each record without disclosing hidden names', function () {
     $other = Customer::create(['name' => 'Bob']);

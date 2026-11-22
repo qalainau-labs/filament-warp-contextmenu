@@ -69,17 +69,17 @@ class WarpContextMenuServiceProvider extends PackageServiceProvider
             Menus::pageActions($component);
             $mounted = Macros::get($component, 'mounted', []);
             if ($mounted !== [] && ($component->mountedActions ?? []) === []) {
-                (function (array $mounted): void {
+                Menus::whileResolvable($component, fn () => (function (array $mounted): void {
                     if (method_exists($this, 'cacheMountedActions') && property_exists($this, 'mountedActions') && $this->cacheMountedActions($mounted) !== []) {
                         $this->mountedActions = $mounted;
                     }
-                })->call($component, $mounted);
+                })->call($component, $mounted));
             }
         });
         Livewire::listen('update', function (Component $component): void {
             Macros::set($component, 'nativeCall', true);
         });
-        Livewire::listen('call', function (Component $component, $method, $params, $context, $returnEarly): void {
+        Livewire::listen('call', function (Component $component, $method, $params, $context, $returnEarly): ?\Closure {
             if ($method !== '__warpContextMenu') {
                 Macros::set($component, 'nativeCall', true);
                 if (Macros::get($component, 'skippedMenuRender', false)) {
@@ -102,13 +102,13 @@ class WarpContextMenuServiceProvider extends PackageServiceProvider
                 if (isset($fetched[$requestKey])) {
                     $returnEarly([]);
 
-                    return;
+                    return null;
                 }
                 $fetched[$requestKey] = true;
                 request()->attributes->set('warpContextMenuFetched', $fetched);
                 $returnEarly(Menus::fetch($component, $keys, $kind));
 
-                return;
+                return null;
             }
             // A new request reconstructs the table before Filament resolves mounted actions.
             if (in_array($method, ['mountAction', 'callMountedAction'], true) && $component instanceof HasActions) {
@@ -116,7 +116,15 @@ class WarpContextMenuServiceProvider extends PackageServiceProvider
                     Menus::prepare($component->getTable());
                 }
                 Menus::pageActions($component);
+                // Filament resolves the action inside the call; put the record actions back afterwards.
+                $restore = Menus::makeResolvable($component);
+
+                return static function () use ($restore): void {
+                    $restore();
+                };
             }
+
+            return null;
         });
     }
 }

@@ -6,6 +6,7 @@ All notable changes to `qalainau/filament-warp-contextmenu` are documented here.
 
 ### Fixed
 
+- Menu-only and cell-menu actions work again with Filament 5.12, which only mounts a table action for a record when it is one of the table's record actions. They are still not shown in the row's actions column.
 - Lazy-loaded table components (relation managers and table widgets, which Filament loads lazily by default) no longer fail with a 500 error ("Typed property …::$table must not be accessed before initialization") on their first load. This affected every lazy table in the panel, including those without a context menu.
 
 ## [1.0.0] - 2026-11-21
