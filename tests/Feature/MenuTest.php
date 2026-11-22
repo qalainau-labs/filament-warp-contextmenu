@@ -1,5 +1,6 @@
 <?php
 
+use Composer\InstalledVersions;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkAction;
@@ -99,7 +100,7 @@ it('does not duplicate native record actions while resolving a mirrored menu', f
 
 it('rejects a header action with a record key when it is absent from the menu', function () {
     // Filament 5.12 added this check; older versions mount any table action with a record key.
-    if (version_compare((string) \Composer\InstalledVersions::getVersion('filament/tables'), '5.12.0', '<')) {
+    if (version_compare((string) InstalledVersions::getVersion('filament/tables'), '5.12.0', '<')) {
         $this->markTestSkipped('Filament before 5.12 does not check record actions.');
     }
     MenuTable::$configure = fn ($table) => $table->headerActions([
