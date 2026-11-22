@@ -2,6 +2,12 @@
 
 All notable changes to `qalainau/filament-warp-contextmenu` are documented here.
 
+## [Unreleased]
+
+### Fixed
+
+- Lazy-loaded table components (relation managers and table widgets, which Filament loads lazily by default) no longer fail with a 500 error ("Typed property …::$table must not be accessed before initialization") on their first load. This affected every lazy table in the panel, including those without a context menu.
+
 ## [1.0.0] - 2026-11-21
 
 ### Added

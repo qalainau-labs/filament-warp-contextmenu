@@ -58,7 +58,9 @@ class WarpContextMenuServiceProvider extends PackageServiceProvider
             }
         });
         app(EventBus::class)->after('hydrate', function (Component $component): void {
-            if (! $component instanceof HasActions) {
+            // A lazy component's first request (Livewire's lazy load) skips boot and
+            // booted, so Filament has not built the table or its actions yet.
+            if (! $component instanceof HasActions || \Livewire\store($component)->has('skipHydrate')) {
                 return;
             }
             if ($component instanceof HasTable && Menus::enabled($component->getTable())) {
