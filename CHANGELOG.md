@@ -2,7 +2,7 @@
 
 All notable changes to `qalainau/filament-warp-contextmenu` are documented here.
 
-## [Unreleased]
+## [1.0.1] - 2026-11-22
 
 ### Fixed
 
