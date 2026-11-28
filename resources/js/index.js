@@ -12,6 +12,7 @@ let active = null
 let lastTarget = null
 let touch = null
 let suppressClick = 0
+let suppressNavigate = 0
 const mobile = () => innerWidth < 640
 const rtl = () => document.documentElement.dir === 'rtl'
 const point = event => ({ x: event.clientX, y: event.clientY })
@@ -518,6 +519,14 @@ function bootstrap(marker) {
     }
     if (installed) return
     installed = true
+    // Stop at window capture before document listeners that may navigate themselves.
+    window.addEventListener('alpine:navigate', event => {
+        if (suppressNavigate > Date.now()) {
+            suppressNavigate = 0
+            event.preventDefault()
+            event.stopImmediatePropagation()
+        }
+    }, true)
     document.addEventListener('contextmenu', event => {
         if (event.defaultPrevented) return
         if (nativeMenu(event)) return
@@ -565,7 +574,7 @@ function bootstrap(marker) {
         if (!context) return
         const start = point(event), started = Date.now()
         touch = { start, current: start, timer: setTimeout(() => {
-            if (touch && longPress(start, touch.current, Date.now() - started)) { suppressClick = Date.now() + 1000; open(context, start) }
+            if (touch && longPress(start, touch.current, Date.now() - started)) { touch.opened = true; suppressClick = Date.now() + 1000; open(context, start) }
         }, 500) }
     }, { passive: true })
     const cancelTouch = () => { clearTimeout(touch?.timer); touch = null }
@@ -574,8 +583,15 @@ function bootstrap(marker) {
         touch.current = point(event)
         if (Math.hypot(touch.current.x - touch.start.x, touch.current.y - touch.start.y) > 10) cancelTouch()
     }, { passive: true })
-    document.addEventListener('pointerup', cancelTouch, { passive: true })
-    document.addEventListener('pointercancel', cancelTouch, { passive: true })
+    const releaseTouch = event => {
+        if (event.pointerType === 'touch' && touch?.opened) {
+            suppressNavigate = Date.now() + 1000
+            suppressClick = Date.now() + 1000
+        }
+        cancelTouch()
+    }
+    document.addEventListener('pointerup', releaseTouch, { passive: true })
+    document.addEventListener('pointercancel', releaseTouch, { passive: true })
     document.addEventListener('click', event => { if (suppressClick > Date.now()) { suppressClick = 0; event.preventDefault(); event.stopImmediatePropagation(); return } if (active && !active.menu.contains(event.target)) close() }, true)
     document.addEventListener('scroll', event => {
         cancelTouch()

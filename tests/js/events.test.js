@@ -54,6 +54,7 @@ afterEach(() => {
     for (const args of documentListeners.mock.calls) document.removeEventListener(...args)
     for (const args of windowListeners.mock.calls) window.removeEventListener(...args)
     delete window.WarpClipboard
+    vi.useRealTimers()
     vi.restoreAllMocks()
 })
 
@@ -577,4 +578,69 @@ it.each([90, 700])('retains the initial menu edge through search and Clipboard r
         menuButton(clipboardMessages.clear_all).click()
         expect(menu.style.top).toBe(`${y === 700 ? 300 : 90}px`)
     } finally { vi.unstubAllGlobals() }
+})
+
+
+const pointer = (type, pointerType = 'touch', x = 80) => target.dispatchEvent(new PointerEvent(type, { bubbles: true, pointerType, clientX: x, clientY: 90 }))
+const navigate = () => {
+    const event = new CustomEvent('alpine:navigate', { bubbles: true, cancelable: true })
+    document.dispatchEvent(event)
+    return event
+}
+const holdTouch = async (duration, release = 'pointerup') => {
+    vi.useFakeTimers()
+    pointer('pointerdown')
+    await vi.advanceTimersByTimeAsync(duration)
+    expect(document.querySelector('[role=menu]')).not.toBeNull()
+    pointer(release)
+}
+
+it.each([600, 2000])('blocks navigation at window capture after a %ims touch hold', async duration => {
+    const bubble = vi.fn()
+    const documentListener = vi.fn()
+    window.addEventListener('alpine:navigate', bubble)
+    document.addEventListener('alpine:navigate', documentListener)
+    await holdTouch(duration)
+    expect(navigate().defaultPrevented).toBe(true)
+    expect(bubble).not.toHaveBeenCalled()
+    expect(documentListener).not.toHaveBeenCalled()
+    expect(navigate().defaultPrevented).toBe(false)
+    expect(bubble).toHaveBeenCalledTimes(1)
+})
+
+it('expires touch navigation suppression one second after release', async () => {
+    await holdTouch(2000)
+    await vi.advanceTimersByTimeAsync(1001)
+    expect(navigate().defaultPrevented).toBe(false)
+})
+
+it('suppresses navigation for a second after cancelling an opened touch hold', async () => {
+    await holdTouch(2000, 'pointercancel')
+    await vi.advanceTimersByTimeAsync(999)
+    expect(navigate().defaultPrevented).toBe(true)
+})
+
+it.each(['short touch', 'mouse', 'pen', 'moved touch'])('allows navigation after %s', async kind => {
+    vi.useFakeTimers()
+    const pointerType = ['mouse', 'pen'].includes(kind) ? kind : 'touch'
+    pointer('pointerdown', pointerType)
+    if (kind === 'moved touch') pointer('pointermove', 'touch', 100)
+    await vi.advanceTimersByTimeAsync(kind === 'short touch' ? 200 : 600)
+    pointer('pointerup', pointerType)
+    expect(document.querySelector('[role=menu]')).toBeNull()
+    expect(navigate().defaultPrevented).toBe(false)
+    const click = new MouseEvent('click', { bubbles: true, cancelable: true })
+    target.dispatchEvent(click)
+    expect(click.defaultPrevented).toBe(false)
+})
+
+it('keeps click and navigation suppression independent after a long touch hold', async () => {
+    await holdTouch(2000)
+    const click = new MouseEvent('click', { bubbles: true, cancelable: true })
+    target.dispatchEvent(click)
+    expect(click.defaultPrevented).toBe(true)
+    expect(navigate().defaultPrevented).toBe(true)
+    const next = new MouseEvent('click', { bubbles: true, cancelable: true })
+    target.dispatchEvent(next)
+    expect(next.defaultPrevented).toBe(false)
 })

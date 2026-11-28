@@ -2,6 +2,12 @@
 
 All notable changes to `qalainau/filament-warp-contextmenu` are documented here.
 
+## [Unreleased]
+
+### Fixed
+
+- On touch screens, in panels using `->spa(hasPrefetching: true)`, lifting the finger after a long press no longer opens the row's link and closes the menu that just opened. With prefetching, Filament's row links use `wire:navigate.hover`, which navigates on the mouse-up event the browser sends after the touch instead of on a click, so the existing click suppression did not catch it. The suppression now also lasts one second from when the finger is lifted, however long the press was.
+
 ## [1.0.1] - 2026-11-22
 
 ### Fixed
